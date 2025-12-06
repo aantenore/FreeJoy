@@ -1,6 +1,10 @@
 # Switch Gamepad (Neon Edition) 🎮
 
-![Launcher](docs/launcher.png)
+<p align="center">
+  <img src="docs/host_qr.png" width="250" alt="QR Code Host Screen"/>
+  <img src="docs/launcher.png" width="250" alt="Native Launcher"/>
+  <img src="docs/gamepad.png" width="400" alt="Mobile Gamepad"/>
+</p>
 
 Transform your smartphone into a **premium Nintendo Switch-style gamepad** for Ryujinx emulator. Features draggable analog sticks, neon UI, and zero-configuration setup.
 
