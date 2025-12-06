@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import QRCode from "react-qr-code";
 import { useGamepad } from './hooks/useGamepad';
 import { Controller } from './components/Controller';
+import { InstallBanner } from './components/InstallBanner';
 import './App.css';
 
 /**
@@ -216,6 +217,7 @@ function GamepadView({ serverUrl, roomId }) {
             <div className={`connection-status ${connected ? 'connected' : 'disconnected'} fixed top-4 right-4`}>
                 <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'} shadow-[0_0_10px_currentColor]`}></div>
             </div>
+            <InstallBanner />
         </div>
     );
 }
