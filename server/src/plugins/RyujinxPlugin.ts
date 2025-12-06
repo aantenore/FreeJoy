@@ -80,6 +80,7 @@ const PLAYER_MAPPINGS: Record<number, Record<string, string>> = {
 export class RyujinxPlugin implements IPlugin {
     name = "Ryujinx Keyboard (4 Players)";
     version = "2.0.0";
+    maxPlayers = 4;
     private robot: any;
 
     async init(): Promise<void> {

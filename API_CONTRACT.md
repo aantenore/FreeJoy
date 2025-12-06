@@ -1,21 +1,3 @@
-# API Contract
-
-Complete documentation of WebSocket events and REST endpoints.
-
-## WebSocket Events
-
-### Client → Server
-
-#### Join Room
-```json
-{
-  "type": "join",
-  "clientId": "uuid-v4",
-  "reconnect": false
-}
-```
-
-**Description**: Join the game room and request player assignment.
 
 **Parameters**:
 - `clientId` (string, required): Unique client identifier (persisted in localStorage)
@@ -163,29 +145,6 @@ Get current room status.
   "playerCount": 2,
   "connectedCount": 2,
   "players": [...]
-}
-```
-
----
-
-### GET /api/qr
-
-Get QR code for joining.
-
-**Response**:
-```json
-{
-  "url": "http://192.168.1.45:8080/join?room=abc123",
-  "qrCode": "data:image/png;base64,...",
-  "roomId": "abc123"
-}
-```
-
----
-
-### POST /api/start
-
-Start the game.
 
 **Response**:
 ```json

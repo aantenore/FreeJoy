@@ -17,6 +17,14 @@ server/dist/
 .env.local
 .env.*.local
 
+# SSL Certificates (NEVER commit private keys!)
+*.pem
+*.key
+*.crt
+*.cert
+server/key.pem
+server/cert.pem
+
 # IDE / Editor
 .vscode/
 .idea/
@@ -47,16 +55,6 @@ coverage/
 tmp/
 temp/
 *.tmp
-
-# Generated files (compilation artifacts)
-*.exe.manifest
-*.res
-app.ico
-LauncherApp.cs
-extract_icon.ps1
-
-# Keep the compiled launcher EXE for easy distribution
-!SwitchGamepad.exe
 
 # Brain/artifacts directory (agent workspace)
 .gemini/

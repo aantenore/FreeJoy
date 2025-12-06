@@ -5,14 +5,16 @@ import { networkInterfaces } from 'os';
 export class RoomManager {
     public readonly roomId: string;
     private players: Map<number, Player> = new Map(); // Slot ID (1-4) -> Player
-    private readonly MAX_PLAYERS = 4;
+    private MAX_PLAYERS: number;
     private cachedServerIp: string; // Cache IP for performance
 
-    constructor() {
+    constructor(maxPlayers: number = 4) {
         this.roomId = uuidv4().split('-')[0].toUpperCase();
+        this.MAX_PLAYERS = maxPlayers;
         this.cachedServerIp = this.detectLocalIP(); // Cache IP at startup
         console.log(`[Room] Ephemeral Room Created: ${this.roomId}`);
         console.log(`[Room] Server IP: ${this.cachedServerIp}`);
+        console.log(`[Room] Max Players: ${this.MAX_PLAYERS}`);
     }
 
     public validateRoom(id: string): boolean {
@@ -21,6 +23,10 @@ export class RoomManager {
             console.log(`[Room] Validation Failed: Received '${id}' vs Expected '${this.roomId}'`);
         }
         return isValid;
+    }
+
+    public isFull(): boolean {
+        return this.players.size >= this.MAX_PLAYERS;
     }
 
     public join(clientId: string, socketId: string): Player | null {

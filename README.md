@@ -1,6 +1,6 @@
 # FreeJoy 🎮✨
 
-Transform your smartphone into a **premium Joy-Con-style gamepad** for Ryujinx emulator. Features draggable analog sticks, neon UI, and zero-configuration setup.
+Transform your smartphone into a **premium wireless gamepad** for Ryujinx emulator. Features draggable analog sticks, neon UI, and zero-configuration setup.
 
 > *Why buy when you can DIY?*
 
@@ -12,7 +12,7 @@ Transform your smartphone into a **premium Joy-Con-style gamepad** for Ryujinx e
 <tr>
 <td width="33%" align="center">
 <img src="docs/gamepad.png" width="100%" alt="Mobile Gamepad"/><br/>
-<b>🎮 Joy-Con Style Controller</b><br/>
+<b>🎮 Wireless Controller</b><br/>
 <sub>Draggable analog sticks • Haptic feedback • Neon aesthetics</sub>
 </td>
 <td width="33%" align="center">
@@ -28,49 +28,6 @@ Transform your smartphone into a **premium Joy-Con-style gamepad** for Ryujinx e
 </tr>
 </table>
 
----
-
-## 📋 Overview
-
-This project provides a complete solution for using your mobile device as a wireless gamepad controller for the Ryujinx Switch emulator. It consists of:
-
-- **Native Windows Launcher**: Beautiful C# application with Joy-Con-inspired UI
-- **Web-based Gamepad**: Responsive mobile interface with real analog stick controls
-- **WebSocket Server**: Low-latency communication between devices
-- **Automatic Setup**: One-click dependency installation and configuration
-
-Perfect for playing Switch games on your PC while using your phone as a controller - no additional hardware required!
-
-## 🚀 Quick Start
-
-### Windows Installation
-
-1. **Download the project** or clone from GitHub
-2. **Double-click `SwitchGamepad.exe`**
-3. Click **"SETUP AND INSTALL"** (first time only - installs Node.js dependencies)
-4. Click **"START SERVER"** 
-5. **Scan the QR code** with your mobile device
-6. Start playing! 🎮
-
-### Linux / macOS Installation
-
-```bash
-# Install dependencies
-cd client && npm install && npm run build
-cd ../server && npm install
-
-# Start server
-npm start
-
-# Open browser to http://localhost:3000
-```
-
-**Note**: Manually configure firewall to allow TCP port 3000.
-
-## 🚀 Features
-
--   **Draggable Analog Sticks**: Touch-responsive pads that follow your finger movement
--   **Native Launcher**: Premium UI with analog stick representations and gamepad icon
 -   **Zero Config**: Automatic IP detection (Wi-Fi priority), QR code generation
 -   **Automated Setup**: One-click install and launch on Windows
 -   **Smart Network**: Auto-detects server IP for correct QR generation
@@ -114,9 +71,109 @@ Ryujinx Emulator (Keyboard Input)
 ```
 
 ### Session Management
-- **Client ID**: UUID stored in browser localStorage
-- **Reconnection**: Same clientId = same player slot
+- **Client ID**: IP-based identification (server assigns based on client IP)
+- **Reconnection**: Same IP = same player slot
 - **Room System**: Single room, 4 player slots, automatic slot assignment
+
+---
+
+## 🚀 Quick Start
+
+### Windows Installation (Easy Mode)
+
+**Using the Launcher (Recommended):**
+
+> ⚠️ **IMPORTANT**: SSL certificates are required! The launcher will help you generate them.
+
+1. **Prerequisites:**
+   - Node.js v18+ ([Download](https://nodejs.org))
+   - OpenSSL (included in Git for Windows)
+
+2. **First-Time Setup:**
+   - Extract the project files
+   - **Double-click `SwitchGamepad.exe`**
+   - Click **"SETUP AND INSTALL"**
+     - Installs Node.js dependencies
+     - Builds client app
+     - **Generates SSL certificates** (key.pem, cert.pem)
+     - Configures Windows Firewall
+
+3. **Start Server:**
+   - Click **"START SERVER"**
+   - Browser opens at http://localhost:3000
+   - **Automatically redirects to https://localhost:3001**
+   - **Accept the self-signed certificate warning** (click "Advanced" → "Proceed")
+
+4. **Connect Mobile:**
+   - Scan the QR code with your phone
+   - Accept certificate warning on mobile too
+   - Start playing! 🎮
+
+---
+
+### Manual Setup (All Platforms)
+
+**Prerequisites:**
+- Node.js v18+ ([Download](https://nodejs.org))
+- OpenSSL (for SSL certificates)
+
+**Step 1: Generate SSL Certificates (REQUIRED!)**
+
+> ⚠️ **The server WILL NOT start without SSL certificates!**
+
+```bash
+# Navigate to server folder
+cd server
+
+# Generate self-signed SSL certificate
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=localhost"
+
+# Return to root
+cd ..
+```
+
+**Step 2: Install Dependencies**
+
+```bash
+# Install client dependencies and build
+cd client
+npm install
+npm run build
+
+# Install server dependencies
+cd ../server
+npm install
+```
+
+**Step 3: Start Server**
+
+```bash
+cd server
+npm start
+```
+
+**Step 4: Open in Browser**
+
+- **Localhost**: http://localhost:3000 (redirects to https://localhost:3001)
+- **Mobile**: Scan QR code shown in terminal
+- **Accept certificate warning** on both PC and mobile
+
+**Step 5: Configure Firewall (if needed)**
+
+```bash
+# Windows (PowerShell as Administrator)
+New-NetFirewallRule -DisplayName "FreeJoy HTTP" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "FreeJoy HTTPS" -Direction Inbound -LocalPort 3001 -Protocol TCP -Action Allow
+
+# Linux
+sudo ufw allow 3000/tcp
+sudo ufw allow 3001/tcp
+
+# macOS
+# Managed through System Preferences → Security & Privacy → Firewall
+```
+
+---
 
 ## 🌐 Network & Firewall
 
@@ -126,46 +183,30 @@ The native launcher automatically:
 - ✅ Configures Windows Firewall rule for TCP port 3000
 - ✅ Generates QR code with correct server address
 
-### Manual Configuration (Linux/macOS)
+### Manual Configuration (All Platforms)
 ```bash
-# Allow TCP port 3000 in your firewall
-sudo ufw allow 3000/tcp  # Ubuntu/Debian
-sudo firewall-cmd --add-port=3000/tcp --permanent  # Fedora/RHEL
+# Allow TCP ports in your firewall
+# Windows (PowerShell as Administrator)
+New-NetFirewallRule -DisplayName "FreeJoy HTTP" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "FreeJoy HTTPS" -Direction Inbound -LocalPort 3001 -Protocol TCP -Action Allow
+
+# Linux
+sudo ufw allow 3000/tcp
+sudo ufw allow 3001/tcp
+
+# macOS
+# Firewall rules managed through System Preferences
 ```
 
 ### Network Requirements
-- **Server**: PC running the launcher (Windows/Linux/macOS)
-- **Client**: Mobile device with web browser
+- **Server**: PC running Node.js (Windows/Linux/macOS)
+- **Client**: Mobile device with modern web browser
 - **Connection**: Both devices on the same Wi-Fi network
-- **Port**: TCP 3000 (configurable via PORT environment variable)
+- **Ports**: 
+  - TCP 3000 (HTTP - redirects to HTTPS)
+  - TCP 3001 (HTTPS - main application)
 
 ## 📦 Quick Start (Windows)
-
-1.  **Double-click** `SwitchGamepad.bat`
-2.  Click **"SETUP AND INSTALL"** (first time only)
-3.  Click **"START SERVER"**
-    -   Browser opens automatically
-4.  Scan the QR code with your mobile device
-
-## 💻 Operating System Support
-
-### Windows (Recommended)
--   **Automated Setup**: `SwitchGamepad.bat` handles everything
--   **Firewall**: Automatically configures Port 3000 rules
-
-### Linux / macOS
-Works via terminal:
-1.  **Client**: `cd client && npm install && npm run build`
-2.  **Server**: `cd server && npm install && npm start`
-3.  **Firewall**: Manually allow TCP Port 3000
-
-## 🕹️ Input Control (Ryujinx)
-By default, the server runs in **Safe Mode** (logging inputs only).
-
-**To enable real Keyboard Control:**
-1.  Install `robotjs` in the `server` folder: `npm install robotjs`
-    -   *Note*: Requires build tools (C++).
-2.  Restart the server.
 
 ### Keyboard Mappings (4 Players)
 

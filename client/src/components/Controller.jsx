@@ -6,7 +6,7 @@ import './Controller.css';
 
 /**
  * Controller Component
- * Neon Joy-Con Style Layout
+ * Neon Gamepad Style Layout
  */
 export function Controller({ playerId, onInput }) {
     const handleButtonPress = (button) => {
@@ -24,7 +24,7 @@ export function Controller({ playerId, onInput }) {
 
     return (
         <div className="controller">
-            {/* LEFT JOY-CON ZONE (BLUE) */}
+            {/* LEFT CONTROLLER ZONE (BLUE) */}
             <div className="zone-left">
                 {/* L / ZL rendered absolutely or relative to top */}
                 <ShoulderButtons side="left" onInput={handleInput} />
@@ -71,7 +71,7 @@ export function Controller({ playerId, onInput }) {
                 >+</button>
             </div>
 
-            {/* RIGHT JOY-CON ZONE (RED) */}
+            {/* RIGHT CONTROLLER ZONE (RED) */}
             <div className="zone-right">
                 <ShoulderButtons side="right" onInput={handleInput} />
 

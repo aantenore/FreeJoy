@@ -9,12 +9,40 @@ import './App.css';
  * Main App Component
  */
 function App() {
-    const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('room');
+    const [mode, setMode] = useState('loading'); // 'loading' | 'host' | 'gamepad'
+    const [activeRoom, setActiveRoom] = useState(null);
     const [hostRoom, setHostRoom] = useState(null);
 
-    // Mode: "gamepad" if room is in URL, else "host"
-    const mode = roomParam ? 'gamepad' : 'host';
+    // Initial Routing Logic
+    useEffect(() => {
+        const path = window.location.pathname;
+
+        // ROUTE: /pad -> Gamepad Mode (Stateless)
+        if (path === '/pad') {
+            // Fetch Room ID immediately
+            fetch('/api/room')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.roomId) {
+                        console.log("Stateless Init: Found active room", data.roomId);
+                        setActiveRoom(data.roomId);
+                        setMode('gamepad');
+                    } else {
+                        // Fallback if no room active (e.g. server just started but room not init? Unlikely)
+                        console.error("No active room found via API");
+                        setMode('error');
+                    }
+                })
+                .catch(err => {
+                    console.error("Failed to init gamepad", err);
+                    setMode('error');
+                });
+        }
+        // ROUTE: / (root) -> Host Mode
+        else {
+            setMode('host');
+        }
+    }, []);
 
     // HOST MODE FETCH
     useEffect(() => {
@@ -26,22 +54,26 @@ function App() {
         }
     }, [mode]);
 
+    if (mode === 'loading') {
+        return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Loading...</div>;
+    }
+
+    if (mode === 'error') {
+        return (
+            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 text-center">
+                <h2 className="text-2xl font-bold mb-2">Service Unavailable</h2>
+                <p className="text-white/60 mb-6">Could not connect to the Gamepad Server.</p>
+                <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 rounded-lg font-bold">Retry</button>
+            </div>
+        )
+    }
+
     if (mode === 'host') {
         if (!hostRoom) return (
             <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white relative overflow-hidden">
-                {/* Animated gradient background */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 animate-gradient-xy"></div>
-
-                {/* Joy-Con splash */}
                 <div className="relative z-10 flex flex-col items-center animate-pulse">
-                    <div className="flex gap-6 mb-8">
-                        <div className="w-16 h-32 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl shadow-2xl transform -rotate-12 animate-bounce"></div>
-                        <div className="w-16 h-32 bg-gradient-to-br from-red-400 to-pink-600 rounded-2xl shadow-2xl transform rotate-12 animate-bounce animation-delay-300"></div>
-                    </div>
-                    <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400">
-                        FREEJOY
-                    </p>
-                    <p className="text-lg font-medium text-slate-300 mt-2">Initializing Host...</p>
+                    <p className="text-xl font-bold">Initializing Server...</p>
                 </div>
             </div>
         );
@@ -49,7 +81,8 @@ function App() {
         const serverIp = hostRoom.serverIp || window.location.hostname;
         const port = window.location.port ? `:${window.location.port}` : '';
         const protocol = window.location.protocol;
-        const joinUrl = `${protocol}//${serverIp}${port}/?room=${hostRoom.roomId}`;
+        // Requirement: QR Code URL points to /pad
+        const joinUrl = `${protocol}//${serverIp}${port}/pad`;
 
         return (
             <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-slate-900">
@@ -57,40 +90,27 @@ function App() {
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 animate-gradient-xy"></div>
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150"></div>
 
-                {/* Floating Orbs for extra premium feel */}
+                {/* Floating Orbs */}
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
                 <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
 
                 <div className="relative z-10 flex flex-col items-center w-full max-w-md p-6">
-                    {/* Header */}
                     <div className="text-center mb-8">
-                        <h1 className="text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-blue-500 drop-shadow-lg mb-2">
-                            SWITCH
-                        </h1>
-                        <p className="text-xl font-light tracking-widest text-white/80 uppercase">
-                            Gamepad Server
-                        </p>
+                        <h1 className="text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-blue-500 drop-shadow-lg mb-2">FREEJOY</h1>
+                        <p className="text-xl font-light tracking-widest text-white/80 uppercase">Wireless Gamepad</p>
                     </div>
 
-                    {/* Glassmorphism Card with Splash Animation */}
                     <div className="backdrop-blur-xl bg-white/10 border border-white/20 p-8 rounded-3xl shadow-2xl flex flex-col items-center transform transition-all hover:scale-105 duration-300 animate-fadeIn">
-                        {/* Joy-Con Icons */}
                         <div className="flex gap-4 mb-6">
                             <div className="w-12 h-20 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg shadow-lg transform -rotate-12 animate-pulse"></div>
                             <div className="w-12 h-20 bg-gradient-to-br from-red-400 to-pink-500 rounded-lg shadow-lg transform rotate-12 animate-pulse animation-delay-300"></div>
                         </div>
 
                         <div className="bg-white p-4 rounded-2xl shadow-inner">
-                            <QRCode
-                                value={joinUrl}
-                                size={220}
-                                level="H"
-                                fgColor="#1e293b"
-                            />
+                            <QRCode value={joinUrl} size={220} level="H" fgColor="#1e293b" />
                         </div>
                     </div>
 
-                    {/* Instructions & URL */}
                     <div className="mt-10 text-center space-y-6 w-full">
                         <div className="space-y-2">
                             <p className="text-white/60 text-sm uppercase tracking-wider font-semibold">Scan to Connect</p>
@@ -101,87 +121,89 @@ function App() {
                         </div>
 
                         <div className="group relative">
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500 to-blue-500 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-                            <div className="relative flex items-center justify-between bg-slate-950 rounded-lg p-4 border border-white/10">
-                                <code className="font-mono text-blue-400 text-sm truncate mr-4">
-                                    {joinUrl}
-                                </code>
-                                <button
-                                    onClick={() => navigator.clipboard.writeText(joinUrl)}
-                                    className="p-2 hover:bg-white/10 rounded-md transition-colors text-white/70 hover:text-white"
-                                    title="Copy URL"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                                </button>
+                            <div className="relative flex items-center justify-between bg-slate-950 rounded-lg p-4 border border-white/10 justify-center">
+                                <code className="font-mono text-blue-400 text-sm truncate">{joinUrl}</code>
                             </div>
                         </div>
-
-                        <p className="text-xs text-white/40 max-w-xs mx-auto leading-relaxed">
-                            Ensure your device is connected to the same Wi-Fi network.
-                            <br />
-                            Supports iOS & Android.
-                        </p>
                     </div>
                 </div>
-
-                {/* Footer */}
-                <div className="absolute bottom-6 text-white/20 text-xs font-mono">
-                    v2.0.0 • Ephemeral Session
+                {/* Fallback & Footer */}
+                <div className="absolute bottom-6 text-white/20 text-xs font-mono flex flex-col items-center gap-2">
+                    <span>v2.1.0 • Stateless Architecture</span>
+                    {/* Manual Override Button incase someone hits root on phone */}
+                    <a href="/pad" className="text-white/40 hover:text-white underline">
+                        Open Gamepad
+                    </a>
                 </div>
             </div>
         );
     }
 
-    return <GamepadView serverUrl={window.location.origin} roomId={roomParam} />;
+    return <GamepadView roomId={activeRoom} />;
 }
 
-function GamepadView({ serverUrl, roomId }) {
-    const { playerId, connected, error, sendInput } = useGamepad(serverUrl, roomId);
+function GamepadView({ roomId }) {
+    const { status, player, errorMsg, sendInput, activeRoomId } = useGamepad(roomId);
+
+    // Derive Flattened Props
+    const playerId = player?.playerId;
+    const connected = status === 'connected';
+    const error = errorMsg;
+
+    const [showSplash, setShowSplash] = useState(true);
+    const [isLongConnection, setIsLongConnection] = useState(false);
 
     useEffect(() => {
         if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(err => console.log('Orientation lock failed:', err));
+            screen.orientation.lock('landscape').catch(err => console.log('orientation err', err));
         }
     }, []);
 
-    const [showSplash, setShowSplash] = useState(true);
-
     useEffect(() => {
-        // Show splash for minimum 2 seconds
         const timer = setTimeout(() => setShowSplash(false), 2000);
         return () => clearTimeout(timer);
     }, []);
 
     useEffect(() => {
+        let timeout;
+        if (status === 'connecting' && !showSplash) {
+            timeout = setTimeout(() => setIsLongConnection(true), 8000);
+        } else {
+            setIsLongConnection(false);
+        }
+        return () => clearTimeout(timeout);
+    }, [status, showSplash]);
+
+    // Wake Lock
+    useEffect(() => {
         let wakeLock = null;
         const requestWakeLock = async () => {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) { console.log('WakeLock error:', err); }
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { }
         };
         requestWakeLock();
         return () => { if (wakeLock) wakeLock.release(); };
     }, []);
 
-    if (showSplash || (!connected && !error)) {
+    if (showSplash || (status === 'connecting')) {
         return (
             <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white relative overflow-hidden">
-                {/* Animated gradient background */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900"></div>
-
-                {/* Joy-Con splash */}
-                <div className="relative z-10 flex flex-col items-center animate-pulse">
-                    <div className="flex gap-6 mb-8">
-                        <div className="w-16 h-32 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl shadow-2xl transform -rotate-12 animate-bounce"></div>
-                        <div className="w-16 h-32 bg-gradient-to-br from-red-400 to-pink-600 rounded-2xl shadow-2xl transform rotate-12 animate-bounce animation-delay-300"></div>
+                {!isLongConnection ? (
+                    <div className="relative z-10 flex flex-col items-center animate-pulse">
+                        <div className="flex gap-6 mb-8">
+                            <div className="w-16 h-32 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl shadow-2xl transform -rotate-12 animate-bounce"></div>
+                            <div className="w-16 h-32 bg-gradient-to-br from-red-400 to-pink-600 rounded-2xl shadow-2xl transform rotate-12 animate-bounce animation-delay-300"></div>
+                        </div>
+                        <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400">FREEJOY</p>
+                        <p className="text-lg font-medium text-slate-300 mt-2">Connecting to {activeRoomId || roomId}...</p>
                     </div>
-                    <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400">
-                        FREEJOY
-                    </p>
-                    <p className="text-lg font-medium text-slate-300 mt-2">Connecting to Switch...</p>
-                </div>
+                ) : (
+                    <div className="relative z-10 flex flex-col items-center text-center p-6 backdrop-blur-md bg-black/30 rounded-xl">
+                        <h2 className="text-xl mb-4 text-orange-400 opacity-90">Connection Timeout</h2>
+                        <p className="mb-4 text-sm opacity-70">Room: {activeRoomId || roomId}</p>
+                        <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 rounded-lg font-bold shadow-lg">Retry</button>
+                    </div>
+                )}
             </div>
         );
     }
@@ -192,21 +214,26 @@ function GamepadView({ serverUrl, roomId }) {
                 <div className="text-6xl mb-6">⚠️</div>
                 <h2 className="text-2xl font-bold mb-2">Connection Error</h2>
                 <p className="text-white/60 mb-6 max-w-xs">{error}</p>
-                <button
-                    onClick={() => window.location.reload()}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition-colors shadow-lg shadow-blue-900/50"
-                >
-                    Retry Connection
-                </button>
+                <button onClick={() => window.location.reload()} className="mt-6 px-6 py-3 bg-blue-600 rounded-lg">Retry Connection</button>
             </div>
         );
     }
 
     if (!playerId) {
         return (
-            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white">
+            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-4 text-center">
                 <div className="loading-spinner mb-4 border-indigo-500 border-t-transparent"></div>
-                <p className="animate-pulse">Waiting for slot...</p>
+                <p className="animate-pulse text-xl font-bold mb-4">Waiting for slot...</p>
+                <p className="text-sm opacity-50">Room: {activeRoomId || roomId}</p>
+
+                <button
+                    onClick={() => {
+                        window.location.reload();
+                    }}
+                    className="mt-6 px-4 py-2 bg-red-800/50 hover:bg-red-800 rounded text-sm"
+                >
+                    Retry
+                </button>
             </div>
         );
     }
