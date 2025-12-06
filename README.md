@@ -273,6 +273,6 @@ Special thanks to Antigravity for:
 ## 👨‍💻 Author
 
 **Antonio Antenore**  
-**Computer Engineer**
+Computer Engineer
 ---
 
