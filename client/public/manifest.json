@@ -1,0 +1,24 @@
+{
+    "short_name": "FreeJoy",
+    "name": "FreeJoy Wireless Gamepad",
+    "description": "Turn your device into a wireless game controller",
+    "icons": [
+        {
+            "src": "pwa-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "pwa-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "start_url": "/pad",
+    "display": "standalone",
+    "theme_color": "#0f172a",
+    "background_color": "#0f172a",
+    "orientation": "landscape"
+}

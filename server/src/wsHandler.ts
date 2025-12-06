@@ -13,14 +13,27 @@ export class WSHandler {
         this.io.on('connection', (socket: Socket) => {
             console.log(`[WS] New Connection: ${socket.id} from ${socket.handshake.address}`);
 
-            socket.on('join', (data: { clientId: string; roomId: string }) => {
+            socket.on('join', (data: { roomId: string }) => {
+                // Use client IP as persistent identifier (works across Safari/PWA on iOS)
+                const clientIp = socket.handshake.address;
+                const clientId = clientIp; // IP as unique identifier
+
+                console.log(`[WS] Join attempt from ${clientId} (${socket.id}) for room ${data.roomId}`);
+
                 // Validate Room ID (Ephemeral Check)
                 if (!this.room.validateRoom(data.roomId)) {
+                    // REQUIREMENT: Redirect "lost" clients to the active room IF it has space
+                    if (!this.room.isFull()) {
+                        console.log(`[WS] Client ${clientId} sent wrong Room ID. Redirecting to ${this.room.roomId}`);
+                        socket.emit('room_redirect', { newRoomId: this.room.roomId });
+                        return;
+                    }
+
                     socket.emit('error', { code: 'ROOM_CLOSED', message: 'Room does not exist or has expired.' });
                     return;
                 }
 
-                const player = this.room.join(data.clientId, socket.id);
+                const player = this.room.join(clientId, socket.id);
                 if (!player) {
                     socket.emit('error', { code: 'ROOM_FULL', message: 'Room is full.' });
                     return;

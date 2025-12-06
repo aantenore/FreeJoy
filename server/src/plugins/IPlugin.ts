@@ -1,6 +1,7 @@
 export interface IPlugin {
     name: string;
     version: string;
+    maxPlayers: number;
 
     /** Initialize the plugin (e.g. connect to emulator) */
     init(): Promise<void>;
