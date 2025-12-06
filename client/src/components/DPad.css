@@ -1,0 +1,82 @@
+.analog-stick {
+  width: 180px;
+  height: 180px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.analog-rim {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #3a3a3f, #2a2a2f);
+  box-shadow:
+    inset 0 -4px 8px rgba(0, 0, 0, 0.5),
+    inset 0 4px 8px rgba(255, 255, 255, 0.05),
+    0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.analog-center {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #1a1a1f, #0a0a0f);
+  box-shadow:
+    inset 0 -2px 6px rgba(0, 0, 0, 0.8),
+    inset 0 2px 6px rgba(255, 255, 255, 0.03),
+    0 4px 12px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.05s ease-out, box-shadow 0.1s ease;
+  z-index: 2;
+  cursor: grab;
+}
+
+.analog-center:active {
+  cursor: grabbing;
+}
+
+.analog-center.active {
+  transform: scale(0.95);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.9),
+    0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.analog-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #00E5FF, #00C3E3);
+  box-shadow:
+    0 0 12px rgba(0, 229, 255, 0.6),
+    0 0 24px rgba(0, 229, 255, 0.3),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.3);
+  transition: all 0.1s ease;
+}
+
+.analog-center.active .analog-dot {
+  background: linear-gradient(145deg, #FF3C50, #FF1744);
+  box-shadow:
+    0 0 16px rgba(255, 60, 80, 0.8),
+    0 0 32px rgba(255, 60, 80, 0.4),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Preserve old class names for compatibility */
+.dpad {
+  width: 180px;
+  height: 180px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
