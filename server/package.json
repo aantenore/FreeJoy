@@ -1,7 +1,7 @@
 {
-    "name": "switch-gamepad-server",
+    "name": "freejoy-server",
     "version": "2.0.0",
-    "description": "TypeScript Ephemeral Server for Switch Gamepad",
+    "description": "TypeScript Server for FreeJoy - DIY Gamepad Controller",
     "main": "dist/server.js",
     "scripts": {
         "start": "ts-node src/server.ts",

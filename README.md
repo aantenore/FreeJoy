@@ -1,6 +1,8 @@
-# Switch Gamepad (Neon Edition) 🎮
+# FreeJoy 🎮✨
 
-Transform your smartphone into a **premium Nintendo Switch-style gamepad** for Ryujinx emulator. Features draggable analog sticks, neon UI, and zero-configuration setup.
+Transform your smartphone into a **premium Joy-Con-style gamepad** for Ryujinx emulator. Features draggable analog sticks, neon UI, and zero-configuration setup.
+
+> *Why buy when you can DIY?*
 
 ---
 
