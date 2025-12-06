@@ -20,8 +20,9 @@ export function DPad({ onInput }) {
         setIsDragging(true);
         updateStickPosition(e);
 
+        // Enhanced haptic feedback on grab
         if (navigator.vibrate) {
-            navigator.vibrate(10);
+            navigator.vibrate(15); // Slightly stronger for analog stick
         }
     };
 
