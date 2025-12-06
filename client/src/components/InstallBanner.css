@@ -1,0 +1,123 @@
+.install-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+.install-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 24px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.install-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.install-content {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.install-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+}
+
+.install-text {
+    flex: 1;
+}
+
+.install-text h3 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.install-subtitle {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+.install-steps {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.install-steps li {
+    margin-bottom: 4px;
+}
+
+.install-steps strong {
+    font-weight: 600;
+}
+
+.ios-icon,
+.android-icon {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 16px;
+    margin-left: 4px;
+}
+
+.install-button {
+    background: linear-gradient(135deg, #00E5FF 0%, #00C3E3 100%);
+    color: #1a1a1f;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 12px rgba(0, 229, 255, 0.3);
+}
+
+.install-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 229, 255, 0.4);
+}
+
+.install-button:active {
+    transform: translateY(0);
+}
