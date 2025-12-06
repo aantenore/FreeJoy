@@ -1,12 +1,32 @@
 # Switch Gamepad (Neon Edition) 🎮
 
-<p align="center">
-  <img src="docs/gamepad.png" width="400" alt="Mobile Gamepad"/>
-  <img src="docs/launcher.png" width="220" alt="Native Launcher"/>
-  <img src="docs/host_qr.png" width="280" alt="QR Code Host"/>
-</p>
-
 Transform your smartphone into a **premium Nintendo Switch-style gamepad** for Ryujinx emulator. Features draggable analog sticks, neon UI, and zero-configuration setup.
+
+---
+
+## 📸 Visual Showcase
+
+<table>
+<tr>
+<td width="33%" align="center">
+<img src="docs/gamepad.png" width="100%" alt="Mobile Gamepad"/><br/>
+<b>🎮 Joy-Con Style Controller</b><br/>
+<sub>Draggable analog sticks • Haptic feedback • Neon aesthetics</sub>
+</td>
+<td width="33%" align="center">
+<img src="docs/launcher.png" width="100%" alt="Native Launcher"/><br/>
+<b>🖥️ Native Windows Launcher</b><br/>
+<sub>One-click setup • Auto-configuration • Real-time logs</sub>
+</td>
+<td width="33%" align="center">
+<img src="docs/host_qr.png" width="100%" alt="QR Code Host"/><br/>
+<b>📱 Instant Connection</b><br/>
+<sub>Scan QR code • Auto Wi-Fi detection • Zero config</sub>
+</td>
+</tr>
+</table>
+
+---
 
 ## 📋 Overview
 
@@ -216,5 +236,43 @@ Consider implementing:
 -   **Device can't connect?** Ensure devices are on the same Wi-Fi. Check Firewall settings.
 -   **Launcher fails?** Check that Node.js is installed and accessible from command line.
 
+## ⚖️ Legal Disclaimer
+
+This software is provided for **educational and personal use only**. It is designed to work with the Ryujinx emulator for legitimate purposes, such as playing legally owned game backups.
+
+**Important Notes:**
+- This tool does not contain, distribute, or facilitate piracy of any copyrighted content
+- Users are responsible for ensuring they own legal copies of any games they play
+- The author is not responsible for any illegal or unauthorized use of this software
+- Use of this software must comply with all applicable laws and regulations in your jurisdiction
+
+By using this software, you agree to use it only for lawful purposes.
+
 ## 📄 License
 MIT
+
+## 🤖 Built with Antigravity
+
+This entire project was crafted with the assistance of **Antigravity** - Google DeepMind's agentic AI coding assistant. From the neon-themed UI to the native C# launcher, from the draggable analog sticks to the 4-player keyboard mappings, every line of code was a collaborative dance between human creativity and AI precision.
+
+> *"Any sufficiently advanced AI is indistinguishable from a very caffeinated developer at 3 AM."*  
+> — Arthur C. Clarke (probably)
+
+Special thanks to Antigravity for:
+- 🎨 Making the Joy-Con aesthetics actually look premium
+- 🐛 Debugging PowerShell scripts that shall not be named
+- 🎮 Remembering that D-Pads go on the LEFT side of controllers
+- 📱 Teaching me that Wi-Fi interfaces have many names (wlan, wl, wi-fi, wireless...)
+- ✨ And for never judging my "just one more feature" requests
+
+*P.S. - If this README seems suspiciously well-organized, that's because an AI wrote it. If you find bugs, that's all me.* 😄
+
+
+---
+
+## 👨‍💻 Author
+
+**Antonio Antenore**  
+*Computer Engineer **
+---
+
