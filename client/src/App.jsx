@@ -38,7 +38,7 @@ function App() {
                         <div className="w-16 h-32 bg-gradient-to-br from-red-400 to-pink-600 rounded-2xl shadow-2xl transform rotate-12 animate-bounce animation-delay-300"></div>
                     </div>
                     <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400">
-                        SWITCH GAMEPAD
+                        FREEJOY
                     </p>
                     <p className="text-lg font-medium text-slate-300 mt-2">Initializing Host...</p>
                 </div>
@@ -177,7 +177,7 @@ function GamepadView({ serverUrl, roomId }) {
                         <div className="w-16 h-32 bg-gradient-to-br from-red-400 to-pink-600 rounded-2xl shadow-2xl transform rotate-12 animate-bounce animation-delay-300"></div>
                     </div>
                     <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400">
-                        SWITCH GAMEPAD
+                        FREEJOY
                     </p>
                     <p className="text-lg font-medium text-slate-300 mt-2">Connecting to Switch...</p>
                 </div>
