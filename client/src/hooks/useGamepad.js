@@ -103,7 +103,7 @@ export function useGamepad(serverUrl, roomId) {
 
         const interval = setInterval(() => {
             sendPing();
-        }, 5000); // Ping every 5 seconds
+        }, 15000); // Ping every 15 seconds (optimized from 5s)
 
         return () => clearInterval(interval);
     }, [connected, sendPing]);
