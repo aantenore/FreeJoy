@@ -3,7 +3,7 @@ import './ActionButtons.css';
 
 /**
  * Action Buttons Component
- * A/B/X/Y buttons in Nintendo layout
+ * A/B/X/Y action buttons
  */
 export function ActionButtons({ onInput }) {
     const handleButtonPress = (button) => {
@@ -15,7 +15,7 @@ export function ActionButtons({ onInput }) {
         onInput(button, 0);
     };
 
-    // Nintendo generic colors or specific theme colors
+    // Generic button colors or specific theme colors
     const buttons = [
         { name: 'X', position: 'top', color: '#fff' }, // Usually white/gray letter on black btn
         { name: 'A', position: 'right', color: '#fff' },
@@ -35,7 +35,7 @@ export function ActionButtons({ onInput }) {
         { name: 'B', position: 'bottom', color: '#ff0000' }, // Red
         { name: 'Y', position: 'left', color: '#00ffff' }, // Cyan
     ];
-    // Ah but Nintendo ABXY are not colored like Xbox. They are just engraved.
+    // ABXY buttons styled minimally
     // But for a "Neon" UI, let's use the colors I defined in CSS var for maximum "Wow".
 
     return (

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './DPad.css';
 
 /**
- * Analog Stick Component (Joy-Con Style)
+ * Analog Stick Component (Gamepad Style)
  * Draggable stick that follows finger/mouse movement
  */
 export function DPad({ onInput }) {
