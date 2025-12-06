@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    background-color: #0f172a;
+    color: white;
+    touch-action: none;
+    /* Prevent scroll on mobile */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    margin: 0;
+    overscroll-behavior: none;
+}
