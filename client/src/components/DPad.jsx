@@ -10,6 +10,8 @@ export function DPad({ onInput }) {
     const [isDragging, setIsDragging] = useState(false);
     const padRef = useRef(null);
     const activeDirection = useRef(null);
+    const lastEmitTime = useRef(0);
+    const THROTTLE_MS = 16; // 60Hz max (1000ms / 60 = ~16ms)
 
     const maxDistance = 35; // Maximum stick displacement from center
 

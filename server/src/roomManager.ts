@@ -6,10 +6,13 @@ export class RoomManager {
     public readonly roomId: string;
     private players: Map<number, Player> = new Map(); // Slot ID (1-4) -> Player
     private readonly MAX_PLAYERS = 4;
+    private cachedServerIp: string; // Cache IP for performance
 
     constructor() {
         this.roomId = uuidv4().split('-')[0].toUpperCase();
+        this.cachedServerIp = this.detectLocalIP(); // Cache IP at startup
         console.log(`[Room] Ephemeral Room Created: ${this.roomId}`);
+        console.log(`[Room] Server IP: ${this.cachedServerIp}`);
     }
 
     public validateRoom(id: string): boolean {
@@ -88,7 +91,7 @@ export class RoomManager {
     }
 
     // Helper to get Local IP with Wi-Fi priority
-    private getLocalIP(): string {
+    private detectLocalIP(): string {
         // Allow manual override via environment variable
         if (process.env.PUBLIC_HOST) {
             return process.env.PUBLIC_HOST;
@@ -110,7 +113,6 @@ export class RoomManager {
                 if (iface) {
                     for (const net of iface) {
                         if (net.family === 'IPv4' && !net.internal) {
-                            console.log(`[Room] Using Wi-Fi IP: ${net.address} (${name})`);
                             return net.address;
                         }
                     }
@@ -124,7 +126,6 @@ export class RoomManager {
             if (iface) {
                 for (const net of iface) {
                     if (net.family === 'IPv4' && !net.internal) {
-                        console.log(`[Room] Using fallback IP: ${net.address} (${name})`);
                         return net.address;
                     }
                 }
@@ -137,7 +138,7 @@ export class RoomManager {
     public getState(): RoomState {
         return {
             roomId: this.roomId,
-            serverIp: this.getLocalIP(),
+            serverIp: this.cachedServerIp, // Use cached IP for performance
             players: Array.from(this.players.values())
         };
     }
