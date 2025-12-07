@@ -4,7 +4,7 @@
     "stick_down": "S",
     "stick_left": "A",
     "stick_right": "D",
-    "stick_button": "F"
+    "stick_button": "E"
   },
   "right_joycon_stick": {
     "stick_up": "Unbound",
@@ -14,15 +14,15 @@
     "stick_button": "Unbound"
   },
   "left_joycon": {
-    "button_minus": "Tab",
-    "button_l": "E",
-    "button_zl": "Q",
-    "button_sl": "Number1",
-    "button_sr": "Number2",
-    "dpad_up": "W",
-    "dpad_down": "S",
-    "dpad_left": "A",
-    "dpad_right": "D"
+    "button_minus": "T",
+    "button_l": "Q",
+    "button_zl": "R",
+    "button_sl": "F",
+    "button_sr": "G",
+    "dpad_up": "Number1",
+    "dpad_down": "Number2",
+    "dpad_left": "Number3",
+    "dpad_right": "Number4"
   },
   "right_joycon": {
     "button_plus": "Unbound",
@@ -38,7 +38,7 @@
   "version": 1,
   "backend": "WindowKeyboard",
   "id": "0",
-  "name": "FreeJoy P1 - Left JoyCon",
+  "name": "FreeJoy P1 [WASD]",
   "controller_type": "JoyconLeft",
   "player_index": "Player1"
 }

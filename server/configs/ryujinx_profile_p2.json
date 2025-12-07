@@ -7,11 +7,11 @@
     "stick_button": "Unbound"
   },
   "right_joycon_stick": {
-    "stick_up": "T",
-    "stick_down": "G",
-    "stick_left": "F",
-    "stick_right": "H",
-    "stick_button": "B"
+    "stick_up": "I",
+    "stick_down": "K",
+    "stick_left": "J",
+    "stick_right": "L",
+    "stick_button": "O"
   },
   "left_joycon": {
     "button_minus": "Unbound",
@@ -25,20 +25,20 @@
     "dpad_right": "Unbound"
   },
   "right_joycon": {
-    "button_plus": "R",
-    "button_r": "V",
+    "button_plus": "P",
+    "button_r": "U",
     "button_zr": "Y",
-    "button_sl": "Number3",
-    "button_sr": "Number4",
-    "button_x": "F",
-    "button_b": "H",
-    "button_y": "T",
-    "button_a": "G"
+    "button_sl": "H",
+    "button_sr": "B",
+    "button_x": "Number8",
+    "button_b": "N",
+    "button_y": "Number7",
+    "button_a": "M"
   },
   "version": 1,
   "backend": "WindowKeyboard",
   "id": "1",
-  "name": "FreeJoy P2 - Right JoyCon",
+  "name": "FreeJoy P2 [IJKL]",
   "controller_type": "JoyconRight",
   "player_index": "Player2"
 }

@@ -7,11 +7,11 @@
     "stick_button": "Unbound"
   },
   "right_joycon_stick": {
-    "stick_up": "Up",
-    "stick_down": "Down",
-    "stick_left": "Left",
-    "stick_right": "Right",
-    "stick_button": "Backslash"
+    "stick_up": "Period",
+    "stick_down": "Slash",
+    "stick_left": "Comma",
+    "stick_right": "Semicolon",
+    "stick_button": "Unbound"
   },
   "left_joycon": {
     "button_minus": "Unbound",
@@ -25,20 +25,20 @@
     "dpad_right": "Unbound"
   },
   "right_joycon": {
-    "button_plus": "BracketRight",
-    "button_r": "Quote",
-    "button_zr": "P",
-    "button_sl": "Number7",
-    "button_sr": "Number8",
-    "button_x": "Left",
-    "button_b": "Right",
-    "button_y": "Up",
-    "button_a": "Down"
+    "button_plus": "AltLeft",
+    "button_r": "Backquote",
+    "button_zr": "Backslash",
+    "button_sl": "Quote",
+    "button_sr": "BracketLeft",
+    "button_x": "ShiftLeft",
+    "button_b": "ControlLeft",
+    "button_y": "BracketRight",
+    "button_a": "Equal"
   },
   "version": 1,
   "backend": "WindowKeyboard",
   "id": "3",
-  "name": "FreeJoy P4 - Right JoyCon",
+  "name": "FreeJoy P4 [Symbols]",
   "controller_type": "JoyconRight",
   "player_index": "Player4"
 }
