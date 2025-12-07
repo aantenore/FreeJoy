@@ -1,156 +1,114 @@
 .controller {
     width: 100%;
     height: 100vh;
-    /* Fallback */
     height: 100dvh;
-    /* Dynamic viewport height - excludes browser chrome */
     display: flex;
-    position: relative;
     background-color: #1a1a1a;
-    background-image:
-        radial-gradient(circle at 50% 50%, #2a2a2a 0%, #1a1a1a 100%),
-        url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zM6 5v1H5z'/%3E%3C/g%3E%3C/svg%3E");
     overflow: hidden;
 }
 
-.controller-main {
-    display: flex;
-    width: 100%;
-    height: 100%;
-}
-
-/* LEFT ZONE - NEON BLUE */
-.zone-left {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-evenly;
-    /* Better spacing */
-    background: linear-gradient(135deg, #00C3E3 0%, #0088A3 100%);
-    position: relative;
-    border-right: 4px solid rgba(0, 0, 0, 0.2);
-    box-shadow: inset -10px 0 20px rgba(0, 0, 0, 0.3);
-    padding: 10px 0;
-}
-
-/* RIGHT ZONE - NEON RED */
+.zone-left,
 .zone-right {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-evenly;
-    /* Better spacing */
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+}
+
+.zone-left {
+    background: linear-gradient(135deg, #00C3E3 0%, #0088A3 100%);
+}
+
+.zone-right {
     background: linear-gradient(135deg, #FF4554 0%, #C41E3A 100%);
-    position: relative;
-    border-left: 4px solid rgba(0, 0, 0, 0.2);
-    box-shadow: inset 10px 0 20px rgba(0, 0, 0, 0.3);
-    padding: 10px 0;
 }
 
-/* CONTAINER SCALING to prevent overlap */
-.stick-container,
-.dpad-container,
-.action-container {
-    transform-origin: center;
-    transform: scale(0.62);
-    /* Smaller to fit with browser bar */
-}
-
-/* Mobile landscape specific fixes */
-@media (max-height: 500px) {
-
-    .stick-container,
-    .dpad-container,
-    .action-container {
-        transform: scale(0.52);
-        /* Extra tight for browser + landscape */
-        margin: -25px 0;
-    }
-
-    .zone-center {
-        width: 50px;
-        padding: 2px 0;
-    }
-}
-
-/* SHARED CENTER STRIP */
-/* SHARED CENTER STRIP */
 .zone-center {
-    width: 20vw;
-    max-width: 80px;
+    width: 55px;
     background: #111;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: space-evenly;
-    /* Even spacing for all elements */
-    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
-    position: relative;
-    z-index: 10;
-    padding: 3px 0;
+    padding: 8px 0;
 }
 
-/* Player Indicator */
-.player-indicator {
-    /* Removed absolute positioning */
-    z-index: 20;
-    pointer-events: none;
-    margin: 5px 0;
+/* Shoulder buttons */
+.shoulder-row {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    padding: 0 8px;
+}
+
+.shoulder-btn {
+    flex: 1;
+    max-width: 85px;
+    height: 26px;
+    background: #222;
+    border: none;
+    border-radius: 5px;
+    color: #888;
+    font-weight: bold;
+    font-size: 10px;
+}
+
+.shoulder-btn:active {
+    background: #000;
+    height: 30px;
+    border-radius: 50%;
+    background: #222;
+    border: none;
+    color: #555;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.center-btn:active {
+    color: #fff;
 }
 
 .player-badge {
     background: rgba(0, 0, 0, 0.6);
     color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
+    padding: 3px 7px;
+    border-radius: 8px;
+    font-size: 10px;
     font-weight: bold;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(4px);
 }
 
-/* Center Buttons (+ / -) */
-.center-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    /* Circle for regular buttons */
-    background: #222;
-    border: none;
-    color: #555;
-    font-size: 24px;
-    font-weight: bold;
+.led-group {
     display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.led {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #444;
+}
+
+.led-on {
+    background: #0f0;
+    box-shadow: 0 0 5px lime;
+}
+
+.orientation-warning {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    box-shadow:
-        0 4px 0 #000,
-        0 5px 10px rgba(0, 0, 0, 0.5);
-    transition: all 0.1s;
-}
-
-.center-btn:active {
-    transform: translateY(4px);
-    box-shadow:
-        0 0 0 #000,
-        inset 0 2px 5px rgba(0, 0, 0, 0.8);
+    z-index: 9999;
     color: #fff;
-}
-
-/* Specific shape for + / - if desired, but circle is classic */
-.btn-minus {
-    /* keeping generic circle */
-}
-
-.btn-plus {
-    /* keeping generic circle */
-}
-
-/* Mobile optimizations */
-@media (max-width: 768px) {
-    .zone-center {
-        width: 60px;
-    }
+    text-align: center;
+    padding: 20px;
 }

@@ -14,4 +14,7 @@ export interface IPlugin {
 
     /** Send analog stick input (Left/Right stick) */
     sendAnalogInput(playerIndex: number, stick: 'left' | 'right', x: number, y: number): void;
+
+    /** Get player profile configuration */
+    getProfile?(playerIndex: number): any;
 }
