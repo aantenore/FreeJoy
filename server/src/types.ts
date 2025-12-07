@@ -10,4 +10,5 @@ export type RoomState = {
     roomId: string;
     serverIp?: string;
     players: Player[];
+    maxPlayers: number;
 };

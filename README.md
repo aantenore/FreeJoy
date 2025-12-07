@@ -15,6 +15,8 @@ Transform your smartphone into a **premium wireless gamepad** for Ryujinx emulat
 <b>🎮 Wireless Controller</b><br/>
 <sub>Dual Sticks • L3/R3 Support • Force Landscape</sub>
 </td>
+</tr>
+<tr>
 <td width="50%" align="center">
 <img src="docs/host_qr.png" width="100%" alt="QR Code Host"/><br/>
 <b>📱 Instant Connection</b><br/>

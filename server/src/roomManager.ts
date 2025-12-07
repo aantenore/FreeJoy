@@ -29,19 +29,52 @@ export class RoomManager {
         return this.players.size >= this.MAX_PLAYERS;
     }
 
-    public join(clientId: string, socketId: string): Player | null {
-        // 1. Check if this client is already assigned a slot (Reconnect)
+    public join(clientId: string, socketId: string, requestedSlot?: number): Player | null {
+        // 1. Specific Slot Request (QR Code Scan / PWA Preference)
+        if (requestedSlot && requestedSlot >= 1 && requestedSlot <= this.MAX_PLAYERS) {
+            const existing = this.players.get(requestedSlot);
+            if (existing) {
+                // If occupied by ME -> Reconnect
+                if (existing.clientId === clientId) {
+                    existing.socketId = socketId;
+                    existing.connected = true;
+                    existing.lastPing = Date.now();
+                    console.log(`[Room] Player ${requestedSlot} Reconnected (Specific Slot)`);
+                    return existing;
+                } else {
+                    // Occupied by someone else. Fallback.
+                    console.log(`[Room] Slot ${requestedSlot} occupied. Falling back to auto-assign.`);
+                }
+            } else {
+                // Free Slot -> Take it
+                // CRITICAL: Remove specific client from ANY other slots first to prevent duplicates
+                for (const [slot, p] of this.players.entries()) {
+                    if (p.clientId === clientId) {
+                        console.log(`[Room] Moving Client ${clientId} from Slot ${slot} to ${requestedSlot}`);
+                        this.players.delete(slot);
+                    }
+                }
+
+                const newPlayer: Player = { id: requestedSlot, clientId, socketId, connected: true, lastPing: Date.now() };
+                this.players.set(requestedSlot, newPlayer);
+                console.log(`[Room] Player ${requestedSlot} Joined (Specific Slot)`);
+                return newPlayer;
+            }
+        }
+
+        // 2. Check if I already have ANY slot (Reconnect general)
+        // ... keeps existing slot if I have one
+        // First check if I already have ANY slot
         for (const [slot, player] of this.players.entries()) {
             if (player.clientId === clientId) {
                 player.socketId = socketId;
                 player.connected = true;
                 player.lastPing = Date.now();
-                console.log(`[Room] Player ${slot} Reconnected (Client: ${clientId.slice(0, 4)})`);
                 return player;
             }
         }
 
-        // 2. Assign new slot
+        // 3. Assign first free slot
         for (let i = 1; i <= this.MAX_PLAYERS; i++) {
             if (!this.players.has(i)) {
                 const newPlayer: Player = {
@@ -52,12 +85,11 @@ export class RoomManager {
                     lastPing: Date.now()
                 };
                 this.players.set(i, newPlayer);
-                console.log(`[Room] Player ${i} Joined (Client: ${clientId.slice(0, 4)})`);
+                console.log(`[Room] Player ${i} Joined (Auto-Assign)`);
                 return newPlayer;
             }
         }
 
-        // 3. Room full
         return null;
     }
 
@@ -145,7 +177,8 @@ export class RoomManager {
         return {
             roomId: this.roomId,
             serverIp: this.cachedServerIp, // Use cached IP for performance
-            players: Array.from(this.players.values())
+            players: Array.from(this.players.values()),
+            maxPlayers: this.MAX_PLAYERS
         };
     }
 }

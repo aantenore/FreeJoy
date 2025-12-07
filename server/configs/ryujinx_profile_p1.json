@@ -7,38 +7,38 @@
     "stick_button": "F"
   },
   "right_joycon_stick": {
-    "stick_up": "I",
-    "stick_down": "K",
-    "stick_left": "J",
-    "stick_right": "L",
-    "stick_button": "H"
+    "stick_up": "Unbound",
+    "stick_down": "Unbound",
+    "stick_left": "Unbound",
+    "stick_right": "Unbound",
+    "stick_button": "Unbound"
   },
   "left_joycon": {
-    "button_minus": "Minus",
+    "button_minus": "Tab",
     "button_l": "E",
     "button_zl": "Q",
-    "button_sl": "Unbound",
-    "button_sr": "Unbound",
-    "dpad_up": "Up",
-    "dpad_down": "Down",
-    "dpad_left": "Left",
-    "dpad_right": "Right"
+    "button_sl": "Number1",
+    "button_sr": "Number2",
+    "dpad_up": "W",
+    "dpad_down": "S",
+    "dpad_left": "A",
+    "dpad_right": "D"
   },
   "right_joycon": {
-    "button_plus": "Plus",
-    "button_r": "U",
-    "button_zr": "O",
+    "button_plus": "Unbound",
+    "button_r": "Unbound",
+    "button_zr": "Unbound",
     "button_sl": "Unbound",
     "button_sr": "Unbound",
-    "button_x": "C",
-    "button_b": "X",
-    "button_y": "V",
-    "button_a": "Z"
+    "button_x": "Unbound",
+    "button_b": "Unbound",
+    "button_y": "Unbound",
+    "button_a": "Unbound"
   },
   "version": 1,
   "backend": "WindowKeyboard",
   "id": "0",
-  "name": "FreeJoy Player 1",
-  "controller_type": "ProController",
+  "name": "FreeJoy P1 - Left JoyCon",
+  "controller_type": "JoyconLeft",
   "player_index": "Player1"
 }

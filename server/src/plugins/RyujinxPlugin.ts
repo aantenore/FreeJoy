@@ -1,6 +1,6 @@
 import { IPlugin } from './IPlugin';
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // --- ROBOTJS MAPPING (Ryujinx Key Name -> RobotJS Key) ---
 const RYUJINX_TO_ROBOTJS: Record<string, string> = {
@@ -47,84 +47,76 @@ const CLIENT_TO_CONFIG_PATH: Record<string, string[]> = {
     'R': ['right_joycon', 'button_r'],
     'ZR': ['right_joycon', 'button_zr'],
     'Minus': ['left_joycon', 'button_minus'],
-    'Plus': ['right_joycon', 'button_plus']
+    'Plus': ['right_joycon', 'button_plus'],
+    'SL': ['left_joycon', 'button_sl'],
+    'SR': ['left_joycon', 'button_sr']
 };
 
 export class RyujinxPlugin implements IPlugin {
-    name = "Ryujinx Keyboard (Embedded)";
-    version = "4.0.0";
+    name = "Ryujinx Keyboard (JSON Driven)";
+    version = "5.0.0";
     maxPlayers = 4;
     private robot: any;
-    private currentPlayer: number = 0;
+    private currentPlayer: number = 1;
 
-    // --- EMBEDDED CONFIGS (Source of Truth) ---
-    private profiles: Record<number, any> = {
-        1: {
-            "left_joycon_stick": { "stick_up": "W", "stick_down": "S", "stick_left": "A", "stick_right": "D", "stick_button": "F" },
-            "right_joycon_stick": { "stick_up": "I", "stick_down": "K", "stick_left": "J", "stick_right": "L", "stick_button": "H" },
-            "left_joycon": { "button_minus": "Minus", "button_l": "E", "button_zl": "Q", "button_sl": "Unbound", "button_sr": "Unbound", "dpad_up": "Up", "dpad_down": "Down", "dpad_left": "Left", "dpad_right": "Right" },
-            "right_joycon": { "button_plus": "Plus", "button_r": "U", "button_zr": "O", "button_sl": "Unbound", "button_sr": "Unbound", "button_x": "C", "button_b": "X", "button_y": "V", "button_a": "Z" },
-            "version": 1, "backend": "WindowKeyboard", "id": "0", "name": "FreeJoy Player 1", "controller_type": "ProController", "player_index": "Player1"
-        },
-        2: {
-            "left_joycon_stick": { "stick_up": "Keypad8", "stick_down": "Keypad2", "stick_left": "Keypad4", "stick_right": "Keypad6", "stick_button": "Keypad5" },
-            "right_joycon_stick": { "stick_up": "Home", "stick_down": "End", "stick_left": "Delete", "stick_right": "PageDown", "stick_button": "Insert" },
-            "left_joycon": { "button_minus": "KeypadSubtract", "button_l": "Keypad7", "button_zl": "KeypadDecimal", "button_sl": "Unbound", "button_sr": "Unbound", "dpad_up": "KeypadDivide", "dpad_down": "Number0", "dpad_left": "Keypad9", "dpad_right": "Keypad3" },
-            "right_joycon": { "button_plus": "KeypadEnter", "button_r": "KeypadMultiply", "button_zr": "KeypadAdd", "button_sl": "Unbound", "button_sr": "Unbound", "button_x": "Up", "button_b": "Down", "button_y": "Left", "button_a": "Right" },
-            "version": 1, "backend": "WindowKeyboard", "id": "1", "name": "FreeJoy Player 2", "controller_type": "ProController", "player_index": "Player2"
-        },
-        3: {
-            "left_joycon_stick": { "stick_up": "F1", "stick_down": "F2", "stick_left": "F3", "stick_right": "F4", "stick_button": "F5" },
-            "right_joycon_stick": { "stick_up": "F6", "stick_down": "F7", "stick_left": "F8", "stick_right": "F9", "stick_button": "F10" },
-            "left_joycon": { "button_minus": "F11", "button_l": "BracketLeft", "button_zl": "Backslash", "button_sl": "Unbound", "button_sr": "Unbound", "dpad_up": "Number9", "dpad_down": "Number0", "dpad_left": "Number8", "dpad_right": "Minus" },
-            "right_joycon": { "button_plus": "F12", "button_r": "BracketRight", "button_zr": "Quote", "button_sl": "Unbound", "button_sr": "Unbound", "button_x": "Semicolon", "button_b": "Period", "button_y": "Comma", "button_a": "Slash" },
-            "version": 1, "backend": "WindowKeyboard", "id": "2", "name": "FreeJoy Player 3", "controller_type": "ProController", "player_index": "Player3"
-        },
-        4: {
-            "left_joycon_stick": { "stick_up": "Number1", "stick_down": "Number2", "stick_left": "Number3", "stick_right": "Number4", "stick_button": "Number5" },
-            "right_joycon_stick": { "stick_up": "Number6", "stick_down": "Number7", "stick_left": "Backquote", "stick_right": "Tab", "stick_button": "CapsLock" },
-            "left_joycon": { "button_minus": "Backspace", "button_l": "B", "button_zl": "N", "button_sl": "Unbound", "button_sr": "Unbound", "dpad_up": "T", "dpad_down": "G", "dpad_left": "R", "dpad_right": "Y" },
-            "right_joycon": { "button_plus": "Space", "button_r": "M", "button_zr": "P", "button_sl": "Unbound", "button_sr": "Unbound", "button_x": "PageUp", "button_b": "PageDown", "button_y": "End", "button_a": "Home" },
-            "version": 1, "backend": "WindowKeyboard", "id": "3", "name": "FreeJoy Player 4", "controller_type": "ProController", "player_index": "Player4"
-        }
-    };
-
-    // Runtime cache for fast lookup: [PlayerId][Button] -> RobotKey
+    private profiles: Record<number, any> = {};
     private mappings: Record<number, Record<string, string>> = {};
 
+    constructor() {
+        console.log('[Ryujinx] Initializing JSON-driven plugin...');
+        this.loadProfilesFromJSON();
+        this.parseMappings();
+        console.log('[Ryujinx] Loaded profiles for players:', Object.keys(this.profiles).join(', '));
+    }
+
+    // Load profiles from JSON files in configs/ directory
+    private loadProfilesFromJSON() {
+        const configDir = path.join(process.cwd(), 'configs');
+
+        if (!fs.existsSync(configDir)) {
+            console.error('[Ryujinx] Config directory not found:', configDir);
+            return;
+        }
+
+        // Load all ryujinx_profile_p*.json files
+        const files = fs.readdirSync(configDir).filter(f => f.match(/^ryujinx_profile_p\d+\.json$/));
+
+        for (const file of files) {
+            const match = file.match(/ryujinx_profile_p(\d+)\.json/);
+            if (!match) continue;
+
+            const playerId = parseInt(match[1]); // p1.json -> Player 1
+            const filePath = path.join(configDir, file);
+
+            try {
+                const content = fs.readFileSync(filePath, 'utf-8');
+                const profile = JSON.parse(content);
+                this.profiles[playerId] = profile;
+                console.log(`[Ryujinx] ✓ Loaded ${file} for Player ${playerId}`);
+            } catch (err) {
+                console.error(`[Ryujinx] ✗ Failed to load ${file}:`, err);
+            }
+        }
+
+        if (Object.keys(this.profiles).length === 0) {
+            console.warn('[Ryujinx] ⚠ No valid profiles found in configs/');
+        }
+    }
+
     async init(): Promise<void> {
-        // 1. Initialize RobotJS
+        // Initialize RobotJS
         try {
             this.robot = require('@hurdlegroup/robotjs');
             const _ = this.robot.getScreenSize();
+            console.log('[Ryujinx] RobotJS initialized');
         } catch (e) {
             console.error('[Ryujinx] @hurdlegroup/robotjs not found – keyboard input disabled.');
             this.robot = null;
         }
-
-        // 2. Export Configs to Disk (Ensure Consistency)
-        this.exportConfigs();
-
-        // 3. Parse internal configs for Input Mapping
-        this.parseMappings();
     }
 
     async cleanup(): Promise<void> {
         console.log('[Ryujinx] Cleanup');
-    }
-
-    // Write embedded profiles to server/configs/ to prevent drift
-    private exportConfigs() {
-        const configDir = path.join(process.cwd(), 'configs');
-        if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
-
-        for (const [id, profile] of Object.entries(this.profiles)) {
-            const file = path.join(configDir, `ryujinx_profile_p${id}.json`);
-            // Only write if changed? Or always overwrite to enforce truth?
-            // Overwriting ensures the plugin is always the boss.
-            fs.writeFileSync(file, JSON.stringify(profile, null, 2));
-            console.log(`[Ryujinx] Exported P${id} config.`);
-        }
     }
 
     private parseMappings() {
@@ -133,7 +125,7 @@ export class RyujinxPlugin implements IPlugin {
             const playerMap: Record<string, string> = {};
 
             for (const [clientBtn, jsonPath] of Object.entries(CLIENT_TO_CONFIG_PATH)) {
-                let node = profile;
+                let node: any = profile;
                 for (const key of jsonPath) {
                     if (node) node = node[key];
                 }
@@ -152,17 +144,88 @@ export class RyujinxPlugin implements IPlugin {
     sendButtonPress(playerIndex: number, button: string, pressed: boolean): void {
         this.currentPlayer = playerIndex;
         const mapping = this.mappings[playerIndex];
-        if (!mapping) return;
+        if (!mapping) {
+            console.warn(`[Ryujinx] No mapping for Player ${playerIndex}`);
+            return;
+        }
 
         const key = mapping[button];
         if (key && this.robot) {
             try {
+                console.log(`[Ryujinx] P${playerIndex} ${button} → ${key} (${pressed ? 'DOWN' : 'UP'})`);
                 this.robot.keyToggle(key, pressed ? 'down' : 'up');
-            } catch (err) { }
+            } catch (err) {
+                console.error(`[Ryujinx] Error toggling ${key}:`, err);
+            }
+        } else if (!key) {
+            console.warn(`[Ryujinx] P${playerIndex} ${button} → UNMAPPED`);
         }
     }
 
+    // State tracking for analog-to-digital (prevents spamming keyToggle)
+    private analogState: Record<number, Record<string, boolean>> = {};
+
     sendAnalogInput(playerIndex: number, stick: 'left' | 'right', x: number, y: number): void {
-        // Placeholder
+        const threshold = 0.5;
+        this.currentPlayer = playerIndex;
+
+        if (!this.analogState[playerIndex]) this.analogState[playerIndex] = {};
+
+        const profile = this.profiles[playerIndex];
+        if (!profile) {
+            console.warn(`[Ryujinx] No profile for Player ${playerIndex} analog`);
+            return;
+        }
+
+        const stickMap = stick === 'left' ? profile.left_joycon_stick : profile.right_joycon_stick;
+        if (!stickMap) {
+            console.warn(`[Ryujinx] No ${stick} stick mapping for P${playerIndex}`);
+            return;
+        }
+
+        const isUp = y > threshold;
+        const isDown = y < -threshold;
+        const isRight = x > threshold;
+        const isLeft = x < -threshold;
+
+        const keys = {
+            [stickMap.stick_up]: isUp,
+            [stickMap.stick_down]: isDown,
+            [stickMap.stick_left]: isLeft,
+            [stickMap.stick_right]: isRight
+        };
+
+        for (const [keyName, shouldPress] of Object.entries(keys)) {
+            if (!keyName || keyName === 'Unbound') continue;
+
+            const robotKey = RYUJINX_TO_ROBOTJS[keyName];
+            if (!robotKey) continue;
+
+            const wasPressed = this.analogState[playerIndex][robotKey] || false;
+
+            if (shouldPress && !wasPressed) {
+                console.log(`[Ryujinx] P${playerIndex} ${stick} stick → ${keyName} (${robotKey}) DOWN`);
+                if (this.robot) try { this.robot.keyToggle(robotKey, 'down'); } catch (e) { }
+                this.analogState[playerIndex][robotKey] = true;
+            } else if (!shouldPress && wasPressed) {
+                console.log(`[Ryujinx] P${playerIndex} ${stick} stick → ${keyName} (${robotKey}) UP`);
+                if (this.robot) try { this.robot.keyToggle(robotKey, 'up'); } catch (e) { }
+                this.analogState[playerIndex][robotKey] = false;
+            }
+        }
+    }
+
+    getProfile(playerIndex: number): any {
+        const profile = this.profiles[playerIndex];
+        if (!profile) {
+            console.warn(`[Ryujinx] No profile found for Player ${playerIndex}`);
+            return { type: playerIndex % 2 === 1 ? 'left_joycon' : 'right_joycon' };
+        }
+
+        return {
+            id: playerIndex,
+            type: profile.controller_type === 'JoyconLeft' ? 'left_joycon' : 'right_joycon',
+            name: profile.name || `Player ${playerIndex}`
+        };
     }
 }

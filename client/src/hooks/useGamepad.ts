@@ -1,14 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ConnectionState, PlayerState } from '../types';
+import { v4 as uuidv4 } from 'uuid';
 
 export function useGamepad(initialRoomId: string | null) {
-    // REQUIREMENT: Use IP-based identification (server-side)
-    // No need for client-side UUID generation anymore
-    const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
-        const stored = localStorage.getItem('ryujinx_last_room');
-        return stored || initialRoomId;
-    });
+    // REMOVED localStorage - always use server-provided roomId (iOS compatibility)
+    const [activeRoomId, setActiveRoomId] = useState<string | null>(initialRoomId);
+
+    // Persistent Client ID (UUID)
+    // Stored in localStorage to identify this device across reloads/restarts
+    const getClientId = () => {
+        let id = localStorage.getItem('freejoy_client_id');
+        if (!id) {
+            id = uuidv4();
+            localStorage.setItem('freejoy_client_id', id);
+        }
+        return id;
+    };
+    const clientId = useRef(getClientId()).current;
 
     // Sync prop changes (e.g. from Auto-Discovery) to internal state
     useEffect(() => {
@@ -39,21 +48,35 @@ export function useGamepad(initialRoomId: string | null) {
 
         socket.on('connect', () => {
             console.log('Connected to server, joining room...', activeRoomId);
-            // Server uses IP as clientId, so we only send roomId
-            socket.emit('join', { roomId: activeRoomId });
+
+            // Parse desired slot from URL query param
+            const params = new URLSearchParams(window.location.search);
+            const slotParam = params.get('slot');
+            const desiredSlot = slotParam ? parseInt(slotParam, 10) : undefined;
+
+            console.log("Joining with desire:", desiredSlot);
+
+            // Send persistence ID and Desired Slot
+            socket.emit('join', {
+                roomId: activeRoomId,
+                clientId: clientId,
+                desiredSlot: desiredSlot
+            });
         });
 
-        // Auto-rejoin on reconnection
+        // ... (rest of listeners: reconnect, room_redirect, connect_error, joined, etc.)
+        // Keep existing logic ...
+
         socket.io.on('reconnect', () => {
             console.log('Reconnected! Rejoining room...');
-            socket.emit('join', { roomId: activeRoomId });
+            const params = new URLSearchParams(window.location.search);
+            const slotParam = params.get('slot');
+            const desiredSlot = slotParam ? parseInt(slotParam, 10) : undefined;
+            socket.emit('join', { roomId: activeRoomId, clientId: clientId, desiredSlot });
         });
 
-        // REQUIREMENT: Handle server-side redirect command
         socket.on('room_redirect', (data: { newRoomId: string }) => {
             console.log("Received Redirect to:", data.newRoomId);
-            localStorage.setItem('ryujinx_last_room', data.newRoomId); // Persist correct room
-
             // Update Internal State -> Triggers useEffect re-run -> Reconnects to new room
             setActiveRoomId(data.newRoomId);
         });
@@ -64,10 +87,9 @@ export function useGamepad(initialRoomId: string | null) {
             setErrorMsg('Network Warning: ' + err.message);
         });
 
-        socket.on('joined', (data: { playerId: number; roomId: string }) => {
+        socket.on('joined', (data: { playerId: number; roomId: string; profile?: any }) => {
             console.log('Joined room:', data);
-            localStorage.setItem('ryujinx_last_room', data.roomId); // Save successful connection
-            setPlayer({ playerId: data.playerId, roomId: data.roomId });
+            setPlayer({ playerId: data.playerId, roomId: data.roomId, profile: data.profile });
             setStatus('connected');
         });
 
@@ -79,11 +101,11 @@ export function useGamepad(initialRoomId: string | null) {
         const attemptAutoHeal = async () => {
             console.log("Attempting to Auto-Heal via API...");
             try {
-                const res = await fetch('/api/room');
+                // Add timestamp to prevent iOS caching
+                const res = await fetch(`/api/room?t=${Date.now()}`);
                 const data = await res.json();
                 if (data.roomId && data.roomId !== activeRoomId) {
                     console.log("Auto-Heal: Found new room", data.roomId);
-                    localStorage.setItem('ryujinx_last_room', data.roomId);
                     setActiveRoomId(data.roomId); // Triggers reconnect
                     return true;
                 }
@@ -136,5 +158,12 @@ export function useGamepad(initialRoomId: string | null) {
         }
     }, [status]);
 
-    return { status, player, errorMsg, sendInput, activeRoomId };
+    // New Analog Input Function
+    const sendAnalog = useCallback((stick: 'left' | 'right', x: number, y: number) => {
+        if (socketRef.current && status === 'connected') {
+            socketRef.current.emit('analog', { stick, x, y });
+        }
+    }, [status]);
+
+    return { status, player, errorMsg, sendInput, sendAnalog, activeRoomId };
 }

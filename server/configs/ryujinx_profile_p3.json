@@ -1,44 +1,44 @@
 {
   "left_joycon_stick": {
-    "stick_up": "F1",
-    "stick_down": "F2",
-    "stick_left": "F3",
-    "stick_right": "F4",
-    "stick_button": "F5"
+    "stick_up": "I",
+    "stick_down": "K",
+    "stick_left": "J",
+    "stick_right": "L",
+    "stick_button": "N"
   },
   "right_joycon_stick": {
-    "stick_up": "F6",
-    "stick_down": "F7",
-    "stick_left": "F8",
-    "stick_right": "F9",
-    "stick_button": "F10"
+    "stick_up": "Unbound",
+    "stick_down": "Unbound",
+    "stick_left": "Unbound",
+    "stick_right": "Unbound",
+    "stick_button": "Unbound"
   },
   "left_joycon": {
-    "button_minus": "F11",
-    "button_l": "BracketLeft",
-    "button_zl": "Backslash",
-    "button_sl": "Unbound",
-    "button_sr": "Unbound",
-    "dpad_up": "Number9",
-    "dpad_down": "Number0",
-    "dpad_left": "Number8",
-    "dpad_right": "Minus"
+    "button_minus": "BracketLeft",
+    "button_l": "O",
+    "button_zl": "U",
+    "button_sl": "Number5",
+    "button_sr": "Number6",
+    "dpad_up": "I",
+    "dpad_down": "K",
+    "dpad_left": "J",
+    "dpad_right": "L"
   },
   "right_joycon": {
-    "button_plus": "F12",
-    "button_r": "BracketRight",
-    "button_zr": "Quote",
+    "button_plus": "Unbound",
+    "button_r": "Unbound",
+    "button_zr": "Unbound",
     "button_sl": "Unbound",
     "button_sr": "Unbound",
-    "button_x": "Semicolon",
-    "button_b": "Period",
-    "button_y": "Comma",
-    "button_a": "Slash"
+    "button_x": "Unbound",
+    "button_b": "Unbound",
+    "button_y": "Unbound",
+    "button_a": "Unbound"
   },
   "version": 1,
   "backend": "WindowKeyboard",
   "id": "2",
-  "name": "FreeJoy Player 3",
-  "controller_type": "ProController",
+  "name": "FreeJoy P3 - Left JoyCon",
+  "controller_type": "JoyconLeft",
   "player_index": "Player3"
 }

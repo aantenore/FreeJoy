@@ -1,6 +1,5 @@
 import express from 'express';
-import { createServer as createHttpsServer } from 'https';
-import { createServer as createHttpServer } from 'http';
+import { createServer } from 'http';
 import { Server } from 'socket.io';
 import qrcode from 'qrcode';
 import cors from 'cors';
@@ -14,34 +13,13 @@ import { RyujinxPlugin } from './plugins/RyujinxPlugin';
 async function bootstrap() {
     const app = express();
     const PORT: number = parseInt(process.env.PORT || '3000', 10);
-    const HTTPS_PORT: number = PORT + 1;  // HTTPS on 3001
-    const HTTP_PORT: number = PORT;        // HTTP on 3000
 
-    // Create HTTP redirect app
-    const httpApp = express();
-    httpApp.use((req, res) => {
-        // Redirect all HTTP to HTTPS
-        const host = req.headers.host?.split(':')[0] || 'localhost';
-        res.redirect(301, `https://${host}:${HTTPS_PORT}${req.url}`);
-    });
-
-    // Start HTTP redirect server
-    const httpRedirectServer = createHttpServer(httpApp);
-    httpRedirectServer.listen(HTTP_PORT, () => {
-        console.log(`🔀 HTTP Redirect: http://localhost:${HTTP_PORT} → https://localhost:${HTTPS_PORT}`);
-    });
-
-    // Load SSL certificate for HTTPS
-    const httpsOptions = {
-        key: fs.readFileSync(path.join(__dirname, '../key.pem')),
-        cert: fs.readFileSync(path.join(__dirname, '../cert.pem'))
-    };
-
-    const httpsServer = createHttpsServer(httpsOptions, app);
-    const protocol = 'https';
+    // Create Standard HTTP Server
+    const httpServer = createServer(app);
+    const protocol = 'http';
 
     // 1. Setup IO
-    const io = new Server(httpsServer, {
+    const io = new Server(httpServer, {
         cors: {
             origin: "*",
             methods: ["GET", "POST"]
@@ -79,17 +57,16 @@ async function bootstrap() {
         }
     });
 
-    // 4. Start HTTPS Server
-    httpsServer.listen(HTTPS_PORT, () => {
+    // 4. Start HTTP Server
+    httpServer.listen(PORT, () => {
         const roomState = roomManager.getState();
-        const serverIp = roomState.serverIp;
+        const serverIp = roomState.serverIp; // Already cached/detected
 
         console.log('==========================================');
-        console.log('🎮 Wireless Gamepad Server Started');
+        console.log('🎮 Wireless Gamepad Server Started (HTTP)');
         console.log('🔌 Plugin:', plugin.name);
         console.log('🏠 Room ID:', roomManager.roomId);
-        console.log('🔗 HTTPS: https://localhost:' + HTTPS_PORT);
-        console.log('🔗 HTTP (redirects): http://localhost:' + HTTP_PORT);
+        console.log('🔗 URL:', `${protocol}://${serverIp}:${PORT}`);
 
         console.log('📱 Network Addresses:');
         const nets = networkInterfaces();
@@ -104,7 +81,7 @@ async function bootstrap() {
             }
         }
 
-        const joinUrl = `${protocol}://${serverIp}:${HTTPS_PORT}/pad`;
+        const joinUrl = `${protocol}://${serverIp}:${PORT}/pad`;
         console.log('📱 QR Code URL:', joinUrl);
         console.log('==========================================\n');
 

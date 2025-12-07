@@ -20,7 +20,7 @@ function App() {
         // ROUTE: /pad -> Gamepad Mode (Stateless)
         if (path === '/pad') {
             // Fetch Room ID immediately
-            fetch('/api/room')
+            fetch(`/api/room?t=${Date.now()}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.roomId) {
@@ -81,61 +81,78 @@ function App() {
         const serverIp = hostRoom.serverIp || window.location.hostname;
         const port = window.location.port ? `:${window.location.port}` : '';
         const protocol = window.location.protocol;
-        // Requirement: QR Code URL points to /pad
-        const joinUrl = `${protocol}//${serverIp}${port}/pad`;
+        const baseUrl = `${protocol}//${serverIp}${port}/pad`;
+
+        // Generate URLs for each slot dynamically based on maxPlayers (default to 4 if missing)
+        const maxPlayers = hostRoom.maxPlayers || 4;
+
+        // Joy-Con Colors
+        const playerConfigs = [
+            { id: 1, color: 'from-cyan-400 to-blue-600', border: 'border-cyan-400', bg: 'bg-cyan-950/40', glow: 'shadow-cyan-500/20' }, // Neon Blue
+            { id: 2, color: 'from-red-500 to-rose-600', border: 'border-red-500', bg: 'bg-rose-950/40', glow: 'shadow-red-500/20' },     // Neon Red
+            { id: 3, color: 'from-green-400 to-emerald-600', border: 'border-green-400', bg: 'bg-emerald-950/40', glow: 'shadow-green-500/20' }, // Neon Green
+            { id: 4, color: 'from-fuchsia-500 to-purple-600', border: 'border-fuchsia-500', bg: 'bg-fuchsia-950/40', glow: 'shadow-fuchsia-500/20' } // Neon Purple
+        ];
+
+        const playerUrls = Array.from({ length: maxPlayers }, (_, i) => {
+            const id = i + 1;
+            const config = playerConfigs[i % 4];
+            return {
+                id,
+                url: `${baseUrl}?slot=${id}`,
+                label: `Player ${id}`,
+                ...config
+            };
+        });
 
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-slate-900">
-                {/* Premium Animated Gradient Background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 animate-gradient-xy"></div>
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150"></div>
+            <div className="h-screen w-full flex flex-col items-center relative overflow-y-auto bg-slate-900 p-4 pb-20 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                {/* Background FX */}
+                <div className="fixed inset-0 bg-gradient-to-br from-indigo-950 via-slate-900 to-black animate-gradient-xy pointer-events-none"></div>
+                <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 pointer-events-none"></div>
 
-                {/* Floating Orbs */}
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-                <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-
-                <div className="relative z-10 flex flex-col items-center w-full max-w-md p-6">
-                    <div className="text-center mb-8">
-                        <h1 className="text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-blue-500 drop-shadow-lg mb-2">FREEJOY</h1>
-                        <p className="text-xl font-light tracking-widest text-white/80 uppercase">Wireless Gamepad</p>
-                    </div>
-
-                    <div className="backdrop-blur-xl bg-white/10 border border-white/20 p-8 rounded-3xl shadow-2xl flex flex-col items-center transform transition-all hover:scale-105 duration-300 animate-fadeIn">
-                        <div className="flex gap-4 mb-6">
-                            <div className="w-12 h-20 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg shadow-lg transform -rotate-12 animate-pulse"></div>
-                            <div className="w-12 h-20 bg-gradient-to-br from-red-400 to-pink-500 rounded-lg shadow-lg transform rotate-12 animate-pulse animation-delay-300"></div>
-                        </div>
-
-                        <div className="bg-white p-4 rounded-2xl shadow-inner">
-                            <QRCode value={joinUrl} size={220} level="H" fgColor="#1e293b" />
-                        </div>
-                    </div>
-
-                    <div className="mt-10 text-center space-y-6 w-full">
-                        <div className="space-y-2">
-                            <p className="text-white/60 text-sm uppercase tracking-wider font-semibold">Scan to Connect</p>
-                            <div className="flex items-center justify-center space-x-2">
-                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                <span className="text-green-400 font-medium text-sm">Room Active</span>
-                            </div>
-                        </div>
-
-                        <div className="group relative">
-                            <div className="relative flex items-center justify-between bg-slate-950 rounded-lg p-4 border border-white/10 justify-center">
-                                <code className="font-mono text-blue-400 text-sm truncate">{joinUrl}</code>
-                            </div>
-                        </div>
-                    </div>
+                {/* Header */}
+                <div className="relative z-10 text-center mb-8 mt-12 px-8 sm:px-12 overflow-visible">
+                    <h1 className="text-6xl font-black tracking-normal text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] to-[#FF4D6D] drop-shadow-lg mb-2 italic overflow-visible">FREEJOY</h1>
+                    <p className="text-xs font-bold tracking-[0.6em] text-white/40 uppercase">Scan to Connect</p>
                 </div>
-                {/* Fallback & Footer */}
-                <div className="absolute bottom-6 text-white/20 text-xs font-mono flex flex-col items-center gap-2">
-                    <span>v2.1.0 • Stateless Architecture</span>
-                    {/* Manual Override Button incase someone hits root on phone */}
-                    <a href="/pad" className="text-white/40 hover:text-white underline">
-                        Open Gamepad
-                    </a>
+
+                {/* QR ROW (Horizontal) */}
+                <div className="relative z-10 flex flex-wrap justify-center gap-6 w-full max-w-[90rem]">
+                    {playerUrls.map(p => (
+                        <a
+                            key={p.id}
+                            href={p.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`
+                                group relative backdrop-blur-xl ${p.bg} border ${p.border} 
+                                p-6 rounded-[2rem] flex flex-col items-center 
+                                ${p.glow} hover:shadow-[0_0_40px_rgba(255,255,255,0.15)]
+                                transition-all duration-300 hover:-translate-y-2 cursor-pointer
+                                w-full sm:w-64
+                            `}
+                        >
+                            <h3 className={`text-4xl font-black italic bg-clip-text text-transparent bg-gradient-to-br ${p.color} mb-6 drop-shadow-sm`}>
+                                {p.label}
+                            </h3>
+                            <div className="bg-white p-3 rounded-2xl shadow-inner border-[6px] border-white/10">
+                                <QRCode value={p.url} size={140} level="M" fgColor="#0f172a" />
+                            </div>
+                            <div className={`mt-5 px-5 py-1.5 rounded-full border ${p.border} bg-black/40 text-[10px] font-bold text-white uppercase tracking-widest group-hover:bg-white text-white group-hover:text-black transition-colors`}>
+                                Join Slot {p.id}
+                            </div>
+                        </a>
+                    ))}
                 </div>
-            </div>
+
+
+                {/* Footer */}
+                < div className="relative z-10 mt-12 text-white/20 text-xs font-mono text-center" >
+                    <p>Server running at:</p>
+                    <p className="select-all">{baseUrl}</p>
+                </div >
+            </div >
         );
     }
 
@@ -143,7 +160,7 @@ function App() {
 }
 
 function GamepadView({ roomId }) {
-    const { status, player, errorMsg, sendInput, activeRoomId } = useGamepad(roomId);
+    const { status, player, errorMsg, sendInput, sendAnalog, activeRoomId } = useGamepad(roomId);
 
     // Derive Flattened Props
     const playerId = player?.playerId;
@@ -194,7 +211,7 @@ function GamepadView({ roomId }) {
                             <div className="w-16 h-32 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl shadow-2xl transform -rotate-12 animate-bounce"></div>
                             <div className="w-16 h-32 bg-gradient-to-br from-red-400 to-pink-600 rounded-2xl shadow-2xl transform rotate-12 animate-bounce animation-delay-300"></div>
                         </div>
-                        <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400">FREEJOY</p>
+                        <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] to-[#FF4D6D]">FREEJOY</p>
                         <p className="text-lg font-medium text-slate-300 mt-2">Connecting to {activeRoomId || roomId}...</p>
                     </div>
                 ) : (
@@ -239,8 +256,8 @@ function GamepadView({ roomId }) {
     }
 
     return (
-        <div className="app bg-slate-950 h-screen w-screen overflow-hidden overscroll-none touch-none">
-            <Controller playerId={playerId} onInput={sendInput} />
+        <div className="app bg-slate-950 min-h-screen w-full overflow-y-auto overscroll-none touch-none">
+            <Controller playerId={playerId} playerProfile={player?.profile} onInput={sendInput} onAnalog={sendAnalog} />
             {/* Connection status hidden for cleaner UI - status visible in center LEDs */}
             <div className="hidden">
                 <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'} shadow-[0_0_10px_currentColor]`}></div>

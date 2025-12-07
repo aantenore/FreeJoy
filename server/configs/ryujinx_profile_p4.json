@@ -1,44 +1,44 @@
 {
   "left_joycon_stick": {
-    "stick_up": "Number1",
-    "stick_down": "Number2",
-    "stick_left": "Number3",
-    "stick_right": "Number4",
-    "stick_button": "Number5"
+    "stick_up": "Unbound",
+    "stick_down": "Unbound",
+    "stick_left": "Unbound",
+    "stick_right": "Unbound",
+    "stick_button": "Unbound"
   },
   "right_joycon_stick": {
-    "stick_up": "Number6",
-    "stick_down": "Number7",
-    "stick_left": "Backquote",
-    "stick_right": "Tab",
-    "stick_button": "CapsLock"
+    "stick_up": "Up",
+    "stick_down": "Down",
+    "stick_left": "Left",
+    "stick_right": "Right",
+    "stick_button": "Backslash"
   },
   "left_joycon": {
-    "button_minus": "Backspace",
-    "button_l": "B",
-    "button_zl": "N",
+    "button_minus": "Unbound",
+    "button_l": "Unbound",
+    "button_zl": "Unbound",
     "button_sl": "Unbound",
     "button_sr": "Unbound",
-    "dpad_up": "T",
-    "dpad_down": "G",
-    "dpad_left": "R",
-    "dpad_right": "Y"
+    "dpad_up": "Unbound",
+    "dpad_down": "Unbound",
+    "dpad_left": "Unbound",
+    "dpad_right": "Unbound"
   },
   "right_joycon": {
-    "button_plus": "Space",
-    "button_r": "M",
+    "button_plus": "BracketRight",
+    "button_r": "Quote",
     "button_zr": "P",
-    "button_sl": "Unbound",
-    "button_sr": "Unbound",
-    "button_x": "PageUp",
-    "button_b": "PageDown",
-    "button_y": "End",
-    "button_a": "Home"
+    "button_sl": "Number7",
+    "button_sr": "Number8",
+    "button_x": "Left",
+    "button_b": "Right",
+    "button_y": "Up",
+    "button_a": "Down"
   },
   "version": 1,
   "backend": "WindowKeyboard",
   "id": "3",
-  "name": "FreeJoy Player 4",
-  "controller_type": "ProController",
+  "name": "FreeJoy P4 - Right JoyCon",
+  "controller_type": "JoyconRight",
   "player_index": "Player4"
 }

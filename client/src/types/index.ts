@@ -3,6 +3,7 @@ export type ConnectionState = 'connecting' | 'connected' | 'error' | 'disconnect
 export interface PlayerState {
     playerId: number;
     roomId: string;
+    profile?: any;
 }
 
 export interface GamepadButton {
