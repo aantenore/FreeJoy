@@ -65,37 +65,6 @@ while ($true) {
                 Write-Host "Installing Server Dependencies..." -ForegroundColor Yellow
                 Push-Location server
                 npm install
-
-                # Check SSL (Run inside server folder where node_modules exist)
-                if (-not (Test-Path ".\key.pem")) {
-                    Write-Host "Generating SSL Certs..." -ForegroundColor Yellow
-                    $certCtx = @"
-try {
-    const selfsigned = require('selfsigned');
-    const fs = require('fs');
-    const attrs = [{ name: 'commonName', value: 'localhost' }];
-    const pems = selfsigned.generate(attrs, { days: 365 });
-    fs.writeFileSync('key.pem', pems.private);
-    fs.writeFileSync('cert.pem', pems.cert);
-    console.log('Certs created.');
-} catch (e) {
-    console.error('Failed to generate certs:', e.message);
-    process.exit(1);
-}
-"@
-                    $certCtx | Out-File -Encoding UTF8 ".\gen_certs.js"
-                    node ".\gen_certs.js"
-                    if ($LASTEXITCODE -eq 0) {
-                        Remove-Item ".\gen_certs.js" -ErrorAction SilentlyContinue
-                        # Move keys up one level if server expects them in root, OR ensure server looks in server root
-                        # Current server.ts looks in ../key.pem (project root)
-                        # So we move them up
-                        Move-Item ".\key.pem" "..\key.pem" -Force
-                        Move-Item ".\cert.pem" "..\cert.pem" -Force
-                    } else {
-                         Write-Host "Certificate generation failed." -ForegroundColor Red
-                    }
-                }
                 Pop-Location
 
                 Write-Host "Installing Client Dependencies..." -ForegroundColor Yellow
@@ -109,7 +78,6 @@ try {
                 Write-Host "Configuring Windows Firewall..." -ForegroundColor Yellow
                 try {
                     New-NetFirewallRule -DisplayName "FreeJoy HTTP" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow -ErrorAction SilentlyContinue
-                    New-NetFirewallRule -DisplayName "FreeJoy HTTPS" -Direction Inbound -LocalPort 3001 -Protocol TCP -Action Allow -ErrorAction SilentlyContinue
                     Write-Host "Firewall Rules Added!" -ForegroundColor Green
                 } catch {
                     Write-Host "Failed to add Firewall rules. (Are you Admin?)" -ForegroundColor Red
@@ -121,7 +89,7 @@ try {
             1 {
                 Write-Host "Starting Server..." -ForegroundColor Yellow
                 Write-Host "Opening Browser..." -ForegroundColor Cyan
-                Start-Process "https://localhost:3001"
+                Start-Process "http://localhost:3000"
                 
                 Write-Host "Press Ctrl+C to Stop" -ForegroundColor Gray
                 cd server

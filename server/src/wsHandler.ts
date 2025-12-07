@@ -13,12 +13,13 @@ export class WSHandler {
         this.io.on('connection', (socket: Socket) => {
             console.log(`[WS] New Connection: ${socket.id} from ${socket.handshake.address}`);
 
-            socket.on('join', (data: { roomId: string }) => {
+            socket.on('join', (data: { roomId: string, clientId?: string, desiredSlot?: number }) => {
                 // Use client IP as persistent identifier (works across Safari/PWA on iOS)
-                const clientIp = socket.handshake.address;
-                const clientId = clientIp; // IP as unique identifier
+                // UPDATE: Prefer UUID if sent
+                const { roomId, clientId, desiredSlot } = data;
+                const finalClientId = clientId || socket.handshake.address;
 
-                console.log(`[WS] Join attempt from ${clientId} (${socket.id}) for room ${data.roomId}`);
+                console.log(`[WS] Join attempt from ${finalClientId} (${socket.id}) for room ${roomId} (SlotReq: ${desiredSlot})`);
 
                 // Validate Room ID (Ephemeral Check)
                 if (!this.room.validateRoom(data.roomId)) {
@@ -33,14 +34,25 @@ export class WSHandler {
                     return;
                 }
 
-                const player = this.room.join(clientId, socket.id);
+                const player = this.room.join(finalClientId, socket.id, desiredSlot);
                 if (!player) {
-                    socket.emit('error', { code: 'ROOM_FULL', message: 'Room is full.' });
+                    if (this.room.isFull()) {
+                        socket.emit('error', { code: 'ROOM_FULL', message: 'Room is full.' });
+                    } else if (desiredSlot) {
+                        socket.emit('error', { code: 'SLOT_TAKEN', message: `Player ${desiredSlot} is already taken.` });
+                    } else {
+                        socket.emit('error', { code: 'ROOM_FULL', message: 'No free slots.' });
+                    }
                     return;
                 }
 
                 // Success
-                socket.emit('joined', { playerId: player.id, roomId: this.room.roomId });
+                const profile = this.plugin.getProfile ? this.plugin.getProfile(player.id) : null;
+                socket.emit('joined', {
+                    playerId: player.id,
+                    roomId: this.room.roomId,
+                    profile: profile
+                });
                 this.broadcastState();
             });
 
@@ -51,6 +63,16 @@ export class WSHandler {
                 // Bridge to Plugin
                 console.log(`[Input] P${player.id} ${data.btn} ${data.state}`);
                 this.plugin.sendButtonPress(player.id, data.btn, data.state === 1);
+            });
+
+            // Analog Stick Input
+            socket.on('analog', (data: { stick: 'left' | 'right'; x: number; y: number }) => {
+                const player = this.room.getPlayerBySocket(socket.id);
+                if (!player) return;
+
+                // Bridge to Plugin
+                console.log(`[Analog] P${player.id} ${data.stick} X:${data.x.toFixed(2)} Y:${data.y.toFixed(2)}`);
+                this.plugin.sendAnalogInput(player.id, data.stick, data.x, data.y);
             });
 
             socket.on('ping', () => {
