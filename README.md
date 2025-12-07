@@ -1,6 +1,6 @@
-# FreeJoy 🎮✨
+# FreeJoy 2.0 🎮✨
 
-Transform your smartphone into a **premium wireless gamepad** for Ryujinx emulator. Features draggable analog sticks, neon UI, and zero-configuration setup.
+Transform your smartphone into a **premium wireless gamepad** for Ryujinx emulator. Features dual analog sticks, L3/R3 support, neon UI, and a technical CLI launcher for automated setup.
 
 > *Why buy when you can DIY?*
 
@@ -13,290 +13,93 @@ Transform your smartphone into a **premium wireless gamepad** for Ryujinx emulat
 <td width="33%" align="center">
 <img src="docs/gamepad.png" width="100%" alt="Mobile Gamepad"/><br/>
 <b>🎮 Wireless Controller</b><br/>
-<sub>Draggable analog sticks • Haptic feedback • Neon aesthetics</sub>
+<sub>Dual Sticks • L3/R3 Support • Force Landscape</sub>
 </td>
-<td width="33%" align="center">
-<img src="docs/launcher.png" width="100%" alt="Native Launcher"/><br/>
-<b>🖥️ Native Windows Launcher</b><br/>
-<sub>One-click setup • Auto-configuration • Real-time logs</sub>
-</td>
-<td width="33%" align="center">
+<td width="50%" align="center">
 <img src="docs/host_qr.png" width="100%" alt="QR Code Host"/><br/>
 <b>📱 Instant Connection</b><br/>
-<sub>Scan QR code • Auto Wi-Fi detection • Zero config</sub>
+<sub>Scan QR code • Zero config • 4 Player Support</sub>
 </td>
 </tr>
 </table>
 
--   **Zero Config**: Automatic IP detection (Wi-Fi priority), QR code generation
--   **Automated Setup**: One-click install and launch on Windows
--   **Smart Network**: Auto-detects server IP for correct QR generation
--   **Session Persistence**: Same device reconnects as same player automatically
--   **Server Cleanup**: Automatically stops server when launcher closes
-
-## 🏗️ Architecture & Technology Stack
-
-### Frontend (Client)
-- **Framework**: React 18 + Vite
-- **UI Components**: Custom analog stick controls, action buttons, shoulder buttons
-- **Styling**: CSS with neon gradients and glassmorphism effects
-- **Real-time Communication**: Socket.IO client
-- **QR Code**: react-qr-code for connection sharing
-- **Build**: Vite for optimized production bundle
-
-### Backend (Server)
-- **Runtime**: Node.js + TypeScript
-- **Framework**: Express.js for HTTP server
-- **WebSocket**: Socket.IO for real-time bidirectional communication
-- **Room Management**: Custom room system with player slots (1-4)
-- **Input Plugin**: Ryujinx keyboard mapper (optional robotjs for actual input)
-- **Network**: Auto-detection with Wi-Fi prioritization
-
-### Native Launcher
-- **Language**: C# (.NET Framework 4.x)
-- **UI**: Windows Forms with custom-drawn analog pads
-- **Features**: 
-  - Embedded gamepad icon (extracted from joy.cpl)
-  - Process management (npm install, build, server start/stop)
-  - Automatic firewall configuration
-  - Server cleanup on close
-
-### Communication Flow
-```
-Mobile Device (Client) 
-    ↓ WebSocket (Socket.IO)
-Server (Room Manager)
-    ↓ Plugin System
-Ryujinx Emulator (Keyboard Input)
-```
-
-### Session Management
-- **Client ID**: IP-based identification (server assigns based on client IP)
-- **Reconnection**: Same IP = same player slot
-- **Room System**: Single room, 4 player slots, automatic slot assignment
+## ✨ Key Features
+-   **Dual Analog Sticks**: Full left and right stick support. **Tap the center of the stick** to activate L3/R3.
+-   **4-Player Ready**: Disjoint key mappings for 4 inputs on a single PC.
+-   **Plugin-Driven Configs**: The server's `RyujinxPlugin` is the **single source of truth**. It automatically generates and updates the JSON config files in `server/configs/` to ensure your emulator inputs are always perfectly synced with the code.
+-   **PowerShell Launcher**: `Launcher.ps1` handles dependencies, SSL certificates, and server startup.
+-   **Smart Network**: Auto-detects server IP for proper QR code generation.
 
 ---
 
 ## 🚀 Quick Start
 
-### Windows Installation (Easy Mode)
+### 1. Start the Launcher
+Double-click `Launcher.bat` in the root folder.
 
-**Using the Launcher (Recommended):**
+### 2. Setup (First Time)
+Select option `[1] Setup` using your arrow keys.
+-   Installs Node.js dependencies for Server and Client.
+-   Builds the React Client.
+-   **Generates SSL certificates** (`key.pem`, `cert.pem`) automatically.
 
-> ⚠️ **IMPORTANT**: SSL certificates are required! The launcher will help you generate them.
+### 3. Start Server
+Select option `[2] Start Server`.
+-   The server will launch on `https://localhost:3001`.
+-   It will **automatically write the configuration files** to `server/configs/`.
+-   Scan the QR code with your phone(s).
 
-1. **Prerequisites:**
-   - Node.js v18+ ([Download](https://nodejs.org))
-   - OpenSSL (included in Git for Windows)
-
-2. **First-Time Setup:**
-   - Extract the project files
-   - **Double-click `SwitchGamepad.exe`**
-   - Click **"SETUP AND INSTALL"**
-     - Installs Node.js dependencies
-     - Builds client app
-     - **Generates SSL certificates** (key.pem, cert.pem)
-     - Configures Windows Firewall
-
-3. **Start Server:**
-   - Click **"START SERVER"**
-   - Browser opens at http://localhost:3000
-   - **Automatically redirects to https://localhost:3001**
-   - **Accept the self-signed certificate warning** (click "Advanced" → "Proceed")
-
-4. **Connect Mobile:**
-   - Scan the QR code with your phone
-   - Accept certificate warning on mobile too
-   - Start playing! 🎮
+### 4. Configure Ryujinx
+Navigate to `server/configs/`. You will find 4 JSON files (`ryujinx_profile_p1.json`, etc.).
+**Load these profiles in Ryujinx** (Options > Settings > Input) to map your controller instantly.
 
 ---
 
-### Manual Setup (All Platforms)
+## 🏗️ Architecture & Tech Stack
 
-**Prerequisites:**
-- Node.js v18+ ([Download](https://nodejs.org))
-- OpenSSL (for SSL certificates)
+### Frontend (Client)
+-   **Framework**: React 18 + Vite
+-   **Input**: Virtual separate inputs for Left Stick, Right Stick, D-Pad, and Buttons.
+-   **UX**: Optimized for Landscape usage with haptic feedback.
 
-**Step 1: Generate SSL Certificates (REQUIRED!)**
+### Backend (Server)
+-   **Runtime**: Node.js + TypeScript
+-   **Input Simulation**: Uses `@hurdlegroup/robotjs` to send low-level keyboard events.
+-   **Config Management**: The plugin contains the "master" definition of all inputs and enforces them by writing to disk on startup.
 
-> ⚠️ **The server WILL NOT start without SSL certificates!**
-
-```bash
-# Navigate to server folder
-cd server
-
-# Generate self-signed SSL certificate
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=localhost"
-
-# Return to root
-cd ..
-```
-
-**Step 2: Install Dependencies**
-
-```bash
-# Install client dependencies and build
-cd client
-npm install
-npm run build
-
-# Install server dependencies
-cd ../server
-npm install
-```
-
-**Step 3: Start Server**
-
-```bash
-cd server
-npm start
-```
-
-**Step 4: Open in Browser**
-
-- **Localhost**: http://localhost:3000 (redirects to https://localhost:3001)
-- **Mobile**: Scan QR code shown in terminal
-- **Accept certificate warning** on both PC and mobile
-
-**Step 5: Configure Firewall (if needed)**
-
-```bash
-# Windows (PowerShell as Administrator)
-New-NetFirewallRule -DisplayName "FreeJoy HTTP" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow
-New-NetFirewallRule -DisplayName "FreeJoy HTTPS" -Direction Inbound -LocalPort 3001 -Protocol TCP -Action Allow
-
-# Linux
-sudo ufw allow 3000/tcp
-sudo ufw allow 3001/tcp
-
-# macOS
-# Managed through System Preferences → Security & Privacy → Firewall
-```
+### CLI Launcher
+-   **Language**: PowerShell (wrapped in Batch)
+-   **Function**: Lightweight lifecycle management. The `.bat` file ensures easy execution without worrying about PowerShell execution policies.
 
 ---
-
-## 🌐 Network & Firewall
-
-### Automatic Configuration (Windows)
-The native launcher automatically:
-- ✅ Detects your local IP address (prioritizes Wi-Fi)
-- ✅ Configures Windows Firewall rule for TCP port 3000
-- ✅ Generates QR code with correct server address
-
-### Manual Configuration (All Platforms)
-```bash
-# Allow TCP ports in your firewall
-# Windows (PowerShell as Administrator)
-New-NetFirewallRule -DisplayName "FreeJoy HTTP" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow
-New-NetFirewallRule -DisplayName "FreeJoy HTTPS" -Direction Inbound -LocalPort 3001 -Protocol TCP -Action Allow
-
-# Linux
-sudo ufw allow 3000/tcp
-sudo ufw allow 3001/tcp
-
-# macOS
-# Firewall rules managed through System Preferences
-```
-
-### Network Requirements
-- **Server**: PC running Node.js (Windows/Linux/macOS)
-- **Client**: Mobile device with modern web browser
-- **Connection**: Both devices on the same Wi-Fi network
-- **Ports**: 
-  - TCP 3000 (HTTP - redirects to HTTPS)
-  - TCP 3001 (HTTPS - main application)
-
-## 📦 Quick Start (Windows)
-
-### Keyboard Mappings (4 Players)
-
-Each player has dedicated keyboard bindings to avoid conflicts:
-
-**Layout**: D-Pad (LEFT side of controller) | Action Buttons (RIGHT side)
-
-| Button | Player 1 | Player 2 | Player 3 | Player 4 |
-|--------|----------|----------|----------|----------|
-| **A** | L | Numpad 6 | P | Period |
-| **B** | K | Numpad 2 | ; | Comma |
-| **X** | I | Numpad 8 | ' | M |
-| **Y** | J | Numpad 4 | L | N |
-| **L** | U | Numpad 7 | [ | - |
-| **R** | O | Numpad 9 | ] | = |
-| **ZL** | 7 | Numpad / | 9 | 5 |
-| **ZR** | 8 | Numpad * | 0 | 6 |
-| **Start** | Enter | Numpad Enter | Backspace | Tab |
-| **Select** | Shift | Numpad - | \\ | Caps Lock |
-| **D-Pad Up** | W | ↑ | T | Y |
-| **D-Pad Down** | S | ↓ | G | B |
-| **D-Pad Left** | A | ← | F | V |
-| **D-Pad Right** | D | → | H | N |
-
-> **Note**: Configure Ryujinx to use these keyboard bindings for each player controller.
-
-## 🔄 Session Persistence
-**The same user reconnecting is automatically recognized!**
-- Each device gets a unique `clientId` stored in browser localStorage
-- If you close the browser and reopen it, you'll rejoin as the same player
-- Opening multiple tabs/windows from the same device = same player
-- This prevents accidental duplicate connections
-
-### Testing Session Persistence
-1. Open browser DevTools (F12)
-2. Console: `localStorage.getItem('gamepad_client_id')`
-3. Note the ID value
-4. Close and reopen browser
-5. Check again - **same ID = working!** ✅
-
-## ⚙️ Advanced Configuration
-To run on a public server (VPS/Cloud), set the `PUBLIC_HOST` environment variable:
-```bash
-set PUBLIC_HOST=my-gamepad.com
-npm start
-```
-
-## 🔄 Updates & Maintenance
-
-### Updating the Application
-The client is a static build served by the server. To update:
-
-1. **Pull latest changes** from repository
-2. **Rebuild client**: `cd client && npm run build`
-3. **Restart server** via launcher or `npm start`
-4. **Mobile clients**: Hard refresh browser (Ctrl+Shift+R) or clear cache
-
-### Version Management
-- Client version is embedded in the build
-- No automatic update notification currently implemented
-- Users must manually refresh to get latest client version
-
-### Future Improvements
-Consider implementing:
-- Service Worker for offline support and update notifications
-- Version checking endpoint to notify users of updates
-- Automatic cache invalidation on new builds
 
 ## 📱 Troubleshooting
 -   **Device can't connect?** Ensure devices are on the same Wi-Fi. Check Firewall settings.
--   **Launcher fails?** Check that Node.js is installed and accessible from command line.
+-   **Launcher doesn't open?** Try right-clicking `Launcher.bat` -> "Run as Administrator" if permission errors occur.
+-   **Buttons don't update?** Clear your mobile browser cache if you recently updated the server.
+
+---
 
 ## ⚖️ Legal Disclaimer
 
 This software is provided for **educational and personal use only**. It is designed to work with the Ryujinx emulator for legitimate purposes, such as playing legally owned game backups.
 
 **Important Notes:**
-- This tool does not contain, distribute, or facilitate piracy of any copyrighted content
-- Users are responsible for ensuring they own legal copies of any games they play
-- The author is not responsible for any illegal or unauthorized use of this software
-- Use of this software must comply with all applicable laws and regulations in your jurisdiction
+- This tool does not contain, distribute, or facilitate piracy of any copyrighted content.
+- Users are responsible for ensuring they own legal copies of any games they play.
+- The author is not responsible for any illegal or unauthorized use of this software.
+- Use of this software must comply with all applicable laws and regulations in your jurisdiction.
 
 By using this software, you agree to use it only for lawful purposes.
+
+---
 
 ## 📄 License
 MIT
 
 ## 🤖 Built with Antigravity
 
-This entire project was crafted with the assistance of **Antigravity** - Google DeepMind's agentic AI coding assistant. From the neon-themed UI to the native C# launcher, from the draggable analog sticks to the 4-player keyboard mappings, every line of code was a collaborative dance between human creativity and AI precision.
+This entire project was crafted with the assistance of **Antigravity** - Google DeepMind's agentic AI coding assistant. From the neon-themed UI to the native C# launcher (RIP), from the draggable analog sticks to the 4-player keyboard mappings, every line of code was a collaborative dance between human creativity and AI precision.
 
 > *"Any sufficiently advanced AI is indistinguishable from a very caffeinated developer at 3 AM."*  
 > — Arthur C. Clarke (probably)
@@ -310,12 +113,9 @@ Special thanks to Antigravity for:
 
 *P.S. - If this README seems suspiciously well-organized, that's because an AI wrote it. If you find bugs, that's all me.* 😄
 
-
 ---
 
 ## 👨‍💻 Author
 
 **Antonio Antenore**  
 Computer Engineer
----
-
