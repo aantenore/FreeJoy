@@ -5,12 +5,12 @@ import { IPlugin } from './IPlugin';
 const PLAYER_MAPPINGS: Record<number, Record<string, string>> = {
     1: { // Player 1 - WASD cluster
         // Action Buttons (RIGHT - IJKL area)
-        'A': 'l',      // Right
-        'B': 'k',      // Down  
-        'X': 'i',      // Up
-        'Y': 'j',      // Left
-        'L': 'u',      // Top left
-        'R': 'o',      // Top right
+        'A': 'l', // Right
+        'B': 'k', // Down
+        'X': 'i', // Up
+        'Y': 'j', // Left
+        'L': 'u', // Top left
+        'R': 'o', // Top right
         'ZL': '7',
         'ZR': '8',
         'Start': 'enter',
@@ -57,7 +57,7 @@ const PLAYER_MAPPINGS: Record<number, Record<string, string>> = {
         'Left': 'f',
         'Right': 'h'
     },
-    4: { // Player 4 - YGHJ cluster  
+    4: { // Player 4 - YGHJ cluster
         // Action Buttons (RIGHT)
         'A': 'period',
         'B': 'comma',
@@ -82,15 +82,15 @@ export class RyujinxPlugin implements IPlugin {
     version = "2.0.0";
     maxPlayers = 4;
     private robot: any;
+    private currentPlayer: number = 0;
 
     async init(): Promise<void> {
         try {
-            this.robot = require('robotjs');
-            const size = this.robot.getScreenSize();
-            console.log(`[Ryujinx] Ready. Screen: ${size.width}x${size.height}`);
-            console.log(`[Ryujinx] 4-Player keyboard mapping enabled`);
+            this.robot = require('@hurdlegroup/robotjs');
+            // Ensure robotjs works; suppress output.
+            const _ = this.robot.getScreenSize();
         } catch (e) {
-            console.error("[Ryujinx] Warning: robotjs not found. Keyboard input disabled.");
+            console.error('[Ryujinx] @hurdlegroup/robotjs not found – keyboard input disabled.');
             this.robot = {
                 keyToggle: (key: string, state: string) => {
                     console.log(`[Mock-Robot] P${this.currentPlayer || '?'} Key ${key} ${state}`);
@@ -100,34 +100,30 @@ export class RyujinxPlugin implements IPlugin {
         }
     }
 
-    private currentPlayer: number = 0;
-
     async cleanup(): Promise<void> {
-        console.log("[Ryujinx] Cleanup");
+        console.log('[Ryujinx] Cleanup');
     }
 
     sendButtonPress(playerIndex: number, button: string, pressed: boolean): void {
         this.currentPlayer = playerIndex;
-
-        // Get mapping for this player
         const mapping = PLAYER_MAPPINGS[playerIndex];
         if (!mapping) {
             console.warn(`[Ryujinx] No mapping for player ${playerIndex}`);
             return;
         }
-
         const key = mapping[button];
+        // Log the received command
+        console.log(`[Ryujinx] Cmd P${playerIndex} ${button} ${pressed ? 'down' : 'up'}`);
         if (key && this.robot) {
             try {
                 this.robot.keyToggle(key, pressed ? 'down' : 'up');
             } catch (err) {
-                // Ignore errors
+                // Silently ignore robot errors
             }
         }
     }
 
     sendAnalogInput(playerIndex: number, stick: 'left' | 'right', x: number, y: number): void {
-        // Not implemented
+        // Placeholder to satisfy IPlugin interface.
     }
 }
-
