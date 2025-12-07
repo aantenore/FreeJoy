@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
     <!-- PWA Configuration -->
     <link rel="manifest" href="/manifest.json" />
@@ -16,10 +17,35 @@
     <meta name="apple-mobile-web-app-title" content="FreeJoy" />
     <link rel="apple-touch-icon" href="/pwa-192x192.png" />
 
+    <!-- Browser fullscreen hints -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+
     <!-- Theme Color -->
     <meta name="theme-color" content="#0f172a" />
 
     <title>FreeJoy - Wireless Gamepad</title>
+
+    <style>
+        /* Force fullscreen behavior even in browser */
+        html,
+        body {
+            position: fixed;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overscroll-behavior: none;
+        }
+
+        #root {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+
 </head>
 
 <body>
@@ -35,6 +61,19 @@
                     .catch(err => console.error('[PWA] Service Worker registration failed:', err));
             });
         }
+
+        // Auto-hide address bar on mobile browsers
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                window.scrollTo(0, 1);
+            }, 100);
+        });
+
+        // Prevent pull-to-refresh
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 1) return;
+            e.preventDefault();
+        }, { passive: false });
     </script>
 </body>
 

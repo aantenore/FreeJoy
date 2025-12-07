@@ -1,6 +1,9 @@
 .controller {
     width: 100%;
     height: 100vh;
+    /* Fallback */
+    height: 100dvh;
+    /* Dynamic viewport height - excludes browser chrome */
     display: flex;
     position: relative;
     background-color: #1a1a1a;
@@ -51,8 +54,8 @@
 .dpad-container,
 .action-container {
     transform-origin: center;
-    transform: scale(0.75);
-    /* More aggressive default scaling */
+    transform: scale(0.62);
+    /* Smaller to fit with browser bar */
 }
 
 /* Mobile landscape specific fixes */
@@ -61,9 +64,9 @@
     .stick-container,
     .dpad-container,
     .action-container {
-        transform: scale(0.58);
-        /* Very tight for landscape */
-        margin: -20px 0;
+        transform: scale(0.52);
+        /* Extra tight for browser + landscape */
+        margin: -25px 0;
     }
 
     .zone-center {
