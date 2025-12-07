@@ -1,3 +1,4 @@
+import { clsx } from 'clsx';
 import { Joystick } from 'react-joystick-component';
 
 interface VirtualControllerProps {
@@ -9,108 +10,88 @@ interface VirtualControllerProps {
 }
 
 export function VirtualController({ onInput, onAnalog, playerId, profile, totalPlayers = 4 }: VirtualControllerProps) {
+    // Determine Joy-Con type
     let isLeftJoyCon = playerId === 1 || playerId === 3;
-
-    if (profile && profile.type) {
+    if (profile?.type) {
         isLeftJoyCon = profile.type === 'left_joycon';
     }
 
-    const joyconColor = isLeftJoyCon
-        ? 'from-[#00D4FF] to-[#0099CC]'
-        : 'from-[#FF4D6D] to-[#C9184A]';
+    const bgColor = isLeftJoyCon
+        ? 'bg-gradient-to-br from-[#00C3E3] to-[#0088A3]'
+        : 'bg-gradient-to-br from-[#FF4554] to-[#C41E3A]';
 
-    const neonColor = isLeftJoyCon ? '#00D4FF' : '#FF4D6D';
+    const neonColor = isLeftJoyCon ? '#00C3E3' : '#FF4554';
 
     return (
-        <div className="w-full h-dvh flex items-center justify-center bg-gradient-to-br from-slate-950 to-black overflow-hidden">
-            {/* Joy-Con Container - Fixed Portrait Layout */}
-            <div className={`
-                relative flex flex-col
-                bg-gradient-to-br ${joyconColor}
-                rounded-[2.5rem]
-                shadow-2xl border-4 border-black/30
-                select-none touch-none
-                w-[min(90vw,340px)] h-[min(90dvh,700px)]
-            `}>
+        <div className={clsx(
+            "w-screen h-dvh flex flex-col select-none touch-none overflow-hidden",
+            "safe-area-inset",
+            bgColor
+        )}>
+            {/* === TOP ROW: Shoulder Buttons (Always at top in landscape) === */}
+            <div className="flex justify-between items-center px-4 py-3 shrink-0">
+                <div className="flex gap-3">
+                    <ShoulderBtn label={isLeftJoyCon ? "ZL" : "ZR"} onInput={onInput} />
+                    <ShoulderBtn label={isLeftJoyCon ? "L" : "R"} onInput={onInput} />
+                </div>
+                <div className="flex gap-3">
+                    <SystemBtn label={isLeftJoyCon ? "Minus" : "Plus"} icon={isLeftJoyCon ? "−" : "+"} onInput={onInput} />
+                </div>
+            </div>
 
-                {/* === PLAYER LED INDICATOR (Small dots, no numbers) === */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex gap-1.5">
+            {/* === MAIN AREA: Stick + LED + Buttons === */}
+            <div className="flex-1 flex flex-row items-center justify-evenly px-4 pb-2">
+
+                {/* LEFT ZONE: Analog Stick */}
+                <div className="flex flex-col items-center gap-3">
+                    <div className="relative w-36 h-36">
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-900 to-black shadow-2xl border-4 border-black/40" />
+                        <div
+                            className="absolute w-3 h-3 rounded-full z-30 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                            style={{ backgroundColor: neonColor, boxShadow: `0 0 12px ${neonColor}` }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ touchAction: 'none' }}>
+                            <Joystick
+                                size={110}
+                                stickSize={65}
+                                baseColor="rgba(0,0,0,0)"
+                                stickColor="#1a1a1a"
+                                throttle={50}
+                                move={(e) => onAnalog(isLeftJoyCon ? 'left' : 'right', (e.x ?? 0) / 55, -(e.y ?? 0) / 55)}
+                                stop={() => onAnalog(isLeftJoyCon ? 'left' : 'right', 0, 0)}
+                            />
+                        </div>
+                    </div>
+                    <SmallBtn label={isLeftJoyCon ? "L3" : "R3"} onInput={onInput} />
+                </div>
+
+                {/* CENTER ZONE: LED Indicator */}
+                <div className="flex flex-col items-center justify-center gap-2">
                     {Array.from({ length: totalPlayers }).map((_, i) => (
                         <div
                             key={i}
-                            className={`
-                                w-2.5 h-2.5 rounded-full transition-all
-                                ${(i + 1) === playerId
-                                    ? 'bg-[#39FF14] shadow-[0_0_6px_#39FF14]'
-                                    : 'bg-gray-600/60'}
-                            `}
+                            className={clsx(
+                                "w-3 h-3 rounded-full transition-all",
+                                (i + 1) === playerId
+                                    ? 'bg-[#39FF14] shadow-[0_0_8px_#39FF14]'
+                                    : 'bg-black/40'
+                            )}
                         />
                     ))}
                 </div>
 
-                {/* TOP: Shoulders */}
-                <div className="flex flex-col gap-2 px-6 pt-10 pb-3">
-                    {isLeftJoyCon ? (
-                        <>
-                            <ShoulderBtn label="ZL" onInput={onInput} />
-                            <ShoulderBtn label="L" onInput={onInput} />
-                        </>
-                    ) : (
-                        <>
-                            <ShoulderBtn label="ZR" onInput={onInput} />
-                            <ShoulderBtn label="R" onInput={onInput} />
-                        </>
-                    )}
-                </div>
+                {/* RIGHT ZONE: D-Pad or ABXY */}
+                {isLeftJoyCon ? (
+                    <DPadCluster onInput={onInput} />
+                ) : (
+                    <ABXYCluster onInput={onInput} />
+                )}
+            </div>
 
-                {/* MAIN BODY */}
-                <div className="flex-1 flex flex-col items-center justify-evenly px-6 py-2">
-                    {isLeftJoyCon ? (
-                        <>
-                            {/* System + Stick */}
-                            <div className="w-full flex flex-col items-center gap-4">
-                                <div className="w-full flex justify-start">
-                                    <SystemBtn icon="−" label="Minus" onInput={onInput} />
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <AnalogStick
-                                        neonColor={neonColor}
-                                        onAnalog={(x, y) => onAnalog('left', x, -y)}
-                                        onStop={() => onAnalog('left', 0, 0)}
-                                    />
-                                    <StickBtn label="L3" onInput={onInput} />
-                                </div>
-                            </div>
-                            {/* D-Pad */}
-                            <DPadCluster onInput={onInput} />
-                        </>
-                    ) : (
-                        <>
-                            {/* System + ABXY */}
-                            <div className="w-full flex flex-col items-center gap-4">
-                                <div className="w-full flex justify-end">
-                                    <SystemBtn icon="+" label="Plus" onInput={onInput} />
-                                </div>
-                                <ABXYCluster onInput={onInput} />
-                            </div>
-                            {/* Stick */}
-                            <div className="flex items-center gap-4">
-                                <AnalogStick
-                                    neonColor={neonColor}
-                                    onAnalog={(x, y) => onAnalog('right', x, -y)}
-                                    onStop={() => onAnalog('right', 0, 0)}
-                                />
-                                <StickBtn label="R3" onInput={onInput} />
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* BOTTOM: SL/SR */}
-                <div className="flex justify-center gap-4 px-6 pb-5">
-                    <RailBtn label="SL" onInput={onInput} />
-                    <RailBtn label="SR" onInput={onInput} />
-                </div>
+            {/* === BOTTOM ROW: SL/SR (Safe area padding) === */}
+            <div className="flex justify-end items-center gap-3 px-4 py-3 shrink-0 pb-safe">
+                <RailBtn label="SL" onInput={onInput} />
+                <RailBtn label="SR" onInput={onInput} />
             </div>
         </div>
     );
@@ -118,36 +99,56 @@ export function VirtualController({ onInput, onAnalog, playerId, profile, totalP
 
 // === SUB-COMPONENTS ===
 
-function AnalogStick({ neonColor, onAnalog, onStop }: any) {
-    return (
-        <div className="relative w-28 h-28">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-800 to-black shadow-xl border-4 border-black/40" />
-            <div
-                className="absolute w-2 h-2 rounded-full z-30 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ backgroundColor: neonColor, boxShadow: `0 0 8px ${neonColor}` }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center" style={{ touchAction: 'none' }}>
-                <Joystick
-                    size={85}
-                    stickSize={50}
-                    baseColor="rgba(0,0,0,0)"
-                    stickColor="#1a1a1a"
-                    throttle={50}
-                    move={(e) => onAnalog((e.x ?? 0) / 42, (e.y ?? 0) / 42)}
-                    stop={onStop}
-                />
-            </div>
-        </div>
-    );
-}
-
 function ShoulderBtn({ label, onInput }: any) {
     return (
         <button
-            className="w-full h-10 rounded-2xl bg-gradient-to-b from-gray-700 to-gray-900 text-gray-100 text-sm font-bold shadow-lg border-2 border-gray-800 active:scale-95 transition-all"
+            className="px-6 py-2 rounded-lg bg-[#222] text-gray-300 text-sm font-bold shadow-lg active:scale-95 active:bg-black transition-all"
             onPointerDown={(e) => { e.preventDefault(); onInput(label, 1); }}
             onPointerUp={(e) => { e.preventDefault(); onInput(label, 0); }}
             onPointerLeave={(e) => { e.preventDefault(); onInput(label, 0); }}
+            onContextMenu={(e) => e.preventDefault()}
+        >
+            {label}
+        </button>
+    );
+}
+
+function SystemBtn({ label, icon, onInput }: any) {
+    return (
+        <button
+            className="w-10 h-10 rounded-full bg-[#222] text-gray-300 text-xl font-bold shadow-lg active:scale-90 active:bg-black transition-all flex items-center justify-center"
+            onPointerDown={(e) => { e.preventDefault(); onInput(label, 1); }}
+            onPointerUp={(e) => { e.preventDefault(); onInput(label, 0); }}
+            onPointerLeave={(e) => { e.preventDefault(); onInput(label, 0); }}
+            onContextMenu={(e) => e.preventDefault()}
+        >
+            {icon}
+        </button>
+    );
+}
+
+function SmallBtn({ label, onInput }: any) {
+    return (
+        <button
+            className="px-4 py-2 rounded-lg bg-[#222] text-gray-400 text-xs font-bold shadow-md active:scale-90 transition-all"
+            onPointerDown={(e) => { e.preventDefault(); onInput(label, 1); }}
+            onPointerUp={(e) => { e.preventDefault(); onInput(label, 0); }}
+            onPointerLeave={(e) => { e.preventDefault(); onInput(label, 0); }}
+            onContextMenu={(e) => e.preventDefault()}
+        >
+            {label}
+        </button>
+    );
+}
+
+function RailBtn({ label, onInput }: any) {
+    return (
+        <button
+            className="px-5 py-2 rounded-lg bg-[#222] text-gray-400 text-xs font-bold shadow-md active:scale-95 transition-all"
+            onPointerDown={(e) => { e.preventDefault(); onInput(label, 1); }}
+            onPointerUp={(e) => { e.preventDefault(); onInput(label, 0); }}
+            onPointerLeave={(e) => { e.preventDefault(); onInput(label, 0); }}
+            onContextMenu={(e) => e.preventDefault()}
         >
             {label}
         </button>
@@ -156,7 +157,7 @@ function ShoulderBtn({ label, onInput }: any) {
 
 function DPadCluster({ onInput }: any) {
     return (
-        <div className="grid grid-cols-3 w-36 h-36 gap-1">
+        <div className="grid grid-cols-3 grid-rows-3 gap-1 w-40 h-40">
             <div />
             <DPadBtn icon="▲" label="DPadUp" onInput={onInput} />
             <div />
@@ -176,10 +177,11 @@ function DPadBtn({ icon, label, onInput }: any) {
     return (
         <div className="flex items-center justify-center">
             <button
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 text-gray-200 text-xl font-bold shadow-lg border-2 border-gray-600 active:scale-90 transition-all flex items-center justify-center"
+                className="w-12 h-12 rounded-full bg-[#222] text-gray-200 text-xl font-bold shadow-lg active:scale-90 active:bg-black transition-all flex items-center justify-center"
                 onPointerDown={(e) => { e.preventDefault(); onInput(label, 1); }}
                 onPointerUp={(e) => { e.preventDefault(); onInput(label, 0); }}
                 onPointerLeave={(e) => { e.preventDefault(); onInput(label, 0); }}
+                onContextMenu={(e) => e.preventDefault()}
             >
                 {icon}
             </button>
@@ -189,72 +191,37 @@ function DPadBtn({ icon, label, onInput }: any) {
 
 function ABXYCluster({ onInput }: any) {
     return (
-        <div className="grid grid-cols-3 w-36 h-36 gap-1">
+        <div className="grid grid-cols-3 grid-rows-3 gap-2 w-40 h-40">
             <div />
-            <ABXYBtn label="X" color="from-yellow-400 to-yellow-600" text="text-gray-900" onInput={onInput} />
+            <ABXYBtn label="X" color="text-yellow-400" onInput={onInput} />
             <div />
-            <ABXYBtn label="Y" color="from-cyan-400 to-cyan-600" text="text-white" onInput={onInput} />
+            <ABXYBtn label="Y" color="text-cyan-400" onInput={onInput} />
             <div className="flex items-center justify-center">
                 <div className="w-8 h-8 rounded-lg bg-black/20" />
             </div>
-            <ABXYBtn label="A" color="from-green-400 to-green-600" text="text-white" onInput={onInput} />
+            <ABXYBtn label="A" color="text-green-400" onInput={onInput} />
             <div />
-            <ABXYBtn label="B" color="from-red-400 to-red-600" text="text-white" onInput={onInput} />
+            <ABXYBtn label="B" color="text-red-400" onInput={onInput} />
             <div />
         </div>
     );
 }
 
-function ABXYBtn({ label, color, text, onInput }: any) {
+function ABXYBtn({ label, color, onInput }: any) {
     return (
         <div className="flex items-center justify-center">
             <button
-                className={`w-12 h-12 rounded-full bg-gradient-to-br ${color} ${text} text-xl font-black shadow-lg border-2 border-white/20 active:scale-90 transition-all flex items-center justify-center`}
+                className={clsx(
+                    "w-12 h-12 rounded-full bg-[#222] text-xl font-black shadow-lg active:scale-90 active:bg-black transition-all flex items-center justify-center",
+                    color
+                )}
                 onPointerDown={(e) => { e.preventDefault(); onInput(label, 1); }}
                 onPointerUp={(e) => { e.preventDefault(); onInput(label, 0); }}
                 onPointerLeave={(e) => { e.preventDefault(); onInput(label, 0); }}
+                onContextMenu={(e) => e.preventDefault()}
             >
                 {label}
             </button>
         </div>
-    );
-}
-
-function SystemBtn({ icon, label, onInput }: any) {
-    return (
-        <button
-            className="w-10 h-10 rounded-full bg-gray-800 text-white text-xl font-bold shadow-md border-2 border-gray-600 active:scale-90 transition-all flex items-center justify-center"
-            onPointerDown={(e) => { e.preventDefault(); onInput(label, 1); }}
-            onPointerUp={(e) => { e.preventDefault(); onInput(label, 0); }}
-            onPointerLeave={(e) => { e.preventDefault(); onInput(label, 0); }}
-        >
-            {icon}
-        </button>
-    );
-}
-
-function StickBtn({ label, onInput }: any) {
-    return (
-        <button
-            className="w-10 h-10 rounded-full bg-gray-800 text-gray-300 text-xs font-bold border-2 border-gray-600 active:scale-90 active:bg-gray-700 transition-all flex items-center justify-center"
-            onPointerDown={(e) => { e.preventDefault(); onInput(label, 1); }}
-            onPointerUp={(e) => { e.preventDefault(); onInput(label, 0); }}
-            onPointerLeave={(e) => { e.preventDefault(); onInput(label, 0); }}
-        >
-            {label}
-        </button>
-    );
-}
-
-function RailBtn({ label, onInput }: any) {
-    return (
-        <button
-            className="w-16 h-9 rounded-xl bg-gray-800 text-gray-300 text-xs font-bold shadow-md border border-gray-600 active:scale-95 transition-all flex items-center justify-center"
-            onPointerDown={(e) => { e.preventDefault(); onInput(label, 1); }}
-            onPointerUp={(e) => { e.preventDefault(); onInput(label, 0); }}
-            onPointerLeave={(e) => { e.preventDefault(); onInput(label, 0); }}
-        >
-            {label}
-        </button>
     );
 }
