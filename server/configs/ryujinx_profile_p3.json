@@ -1,10 +1,10 @@
 {
   "left_joycon_stick": {
-    "stick_up": "I",
-    "stick_down": "K",
-    "stick_left": "J",
-    "stick_right": "L",
-    "stick_button": "N"
+    "stick_up": "Up",
+    "stick_down": "Down",
+    "stick_left": "Left",
+    "stick_right": "Right",
+    "stick_button": "Unbound"
   },
   "right_joycon_stick": {
     "stick_up": "Unbound",
@@ -14,15 +14,15 @@
     "stick_button": "Unbound"
   },
   "left_joycon": {
-    "button_minus": "BracketLeft",
-    "button_l": "O",
-    "button_zl": "U",
+    "button_minus": "Space",
+    "button_l": "Number9",
+    "button_zl": "Number0",
     "button_sl": "Number5",
     "button_sr": "Number6",
-    "dpad_up": "I",
-    "dpad_down": "K",
-    "dpad_left": "J",
-    "dpad_right": "L"
+    "dpad_up": "Z",
+    "dpad_down": "X",
+    "dpad_left": "C",
+    "dpad_right": "V"
   },
   "right_joycon": {
     "button_plus": "Unbound",
@@ -38,7 +38,7 @@
   "version": 1,
   "backend": "WindowKeyboard",
   "id": "2",
-  "name": "FreeJoy P3 - Left JoyCon",
+  "name": "FreeJoy P3 [Arrows]",
   "controller_type": "JoyconLeft",
   "player_index": "Player3"
 }
