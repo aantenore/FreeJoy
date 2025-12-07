@@ -4,7 +4,7 @@
     display: flex;
     position: relative;
     background-color: #1a1a1a;
-    background-image: 
+    background-image:
         radial-gradient(circle at 50% 50%, #2a2a2a 0%, #1a1a1a 100%),
         url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zM6 5v1H5z'/%3E%3C/g%3E%3C/svg%3E");
     overflow: hidden;
@@ -22,11 +22,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: space-evenly;
+    /* Better spacing */
     background: linear-gradient(135deg, #00C3E3 0%, #0088A3 100%);
     position: relative;
-    border-right: 4px solid rgba(0,0,0,0.2);
-    box-shadow: inset -10px 0 20px rgba(0,0,0,0.3);
+    border-right: 4px solid rgba(0, 0, 0, 0.2);
+    box-shadow: inset -10px 0 20px rgba(0, 0, 0, 0.3);
+    padding: 10px 0;
 }
 
 /* RIGHT ZONE - NEON RED */
@@ -35,45 +37,74 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: space-evenly;
+    /* Better spacing */
     background: linear-gradient(135deg, #FF4554 0%, #C41E3A 100%);
     position: relative;
-    border-left: 4px solid rgba(0,0,0,0.2);
-    box-shadow: inset 10px 0 20px rgba(0,0,0,0.3);
+    border-left: 4px solid rgba(0, 0, 0, 0.2);
+    box-shadow: inset 10px 0 20px rgba(0, 0, 0, 0.3);
+    padding: 10px 0;
+}
+
+/* CONTAINER SCALING to prevent overlap */
+.stick-container,
+.dpad-container,
+.action-container {
+    transform-origin: center;
+    transform: scale(0.75);
+    /* More aggressive default scaling */
+}
+
+/* Mobile landscape specific fixes */
+@media (max-height: 500px) {
+
+    .stick-container,
+    .dpad-container,
+    .action-container {
+        transform: scale(0.58);
+        /* Very tight for landscape */
+        margin: -20px 0;
+    }
+
+    .zone-center {
+        width: 50px;
+        padding: 2px 0;
+    }
 }
 
 /* SHARED CENTER STRIP */
+/* SHARED CENTER STRIP */
 .zone-center {
-    width: 80px;
+    width: 20vw;
+    max-width: 80px;
     background: #111;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 40px;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    justify-content: space-evenly;
+    /* Even spacing for all elements */
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
     position: relative;
     z-index: 10;
+    padding: 3px 0;
 }
 
 /* Player Indicator */
 .player-indicator {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
+    /* Removed absolute positioning */
     z-index: 20;
     pointer-events: none;
+    margin: 5px 0;
 }
 
 .player-badge {
-    background: rgba(0,0,0,0.6);
+    background: rgba(0, 0, 0, 0.6);
     color: white;
     padding: 4px 12px;
     border-radius: 12px;
     font-size: 12px;
     font-weight: bold;
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(4px);
 }
 
@@ -81,7 +112,8 @@
 .center-btn {
     width: 40px;
     height: 40px;
-    border-radius: 50%; /* Circle for regular buttons */
+    border-radius: 50%;
+    /* Circle for regular buttons */
     background: #222;
     border: none;
     color: #555;
@@ -90,17 +122,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 
+    box-shadow:
         0 4px 0 #000,
-        0 5px 10px rgba(0,0,0,0.5);
+        0 5px 10px rgba(0, 0, 0, 0.5);
     transition: all 0.1s;
 }
 
 .center-btn:active {
     transform: translateY(4px);
-    box-shadow: 
+    box-shadow:
         0 0 0 #000,
-        inset 0 2px 5px rgba(0,0,0,0.8);
+        inset 0 2px 5px rgba(0, 0, 0, 0.8);
     color: #fff;
 }
 
@@ -108,6 +140,7 @@
 .btn-minus {
     /* keeping generic circle */
 }
+
 .btn-plus {
     /* keeping generic circle */
 }

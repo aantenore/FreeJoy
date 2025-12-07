@@ -1,14 +1,28 @@
-import React from 'react';
-import { DPad } from './DPad';
+import React, { useEffect } from 'react';
+import { DPad } from './DPad'; // Now generic Joystick
 import { ActionButtons } from './ActionButtons';
+import { DirectionalButtons } from './DirectionalButtons'; // Real D-Pad
 import { ShoulderButtons } from './ShoulderButtons';
 import './Controller.css';
 
 /**
  * Controller Component
- * Neon Gamepad Style Layout
+ * Dual Stick, Full Button Layout
+ * Forces Landscape Visuals
  */
 export function Controller({ playerId, onInput }) {
+
+    // Force Landscape Warning / CSS Handled
+    useEffect(() => {
+        // We can't really force browser orientation via JS API reliably across all devices without PWA manifest
+        // But we can suggest it or rotate via CSS if needed.
+        // For now, relying on CSS media queries or user rotation.
+    }, []);
+
+    const handleInput = (button, state) => {
+        onInput(button, state);
+    };
+
     const handleButtonPress = (button) => {
         onInput(button, 1);
         if (navigator.vibrate) navigator.vibrate(10);
@@ -18,43 +32,41 @@ export function Controller({ playerId, onInput }) {
         onInput(button, 0);
     };
 
-    const handleInput = (button, state) => {
-        onInput(button, state);
-    };
-
     return (
         <div className="controller">
-            {/* LEFT CONTROLLER ZONE (BLUE) */}
+            {/* LEFT CONTROLLER ZONE (BLUE-ISH) */}
             <div className="zone-left">
-                {/* L / ZL rendered absolutely or relative to top */}
+                {/* L / ZL */}
                 <ShoulderButtons side="left" onInput={handleInput} />
 
-                <div className="mt-8">
-                    <DPad onInput={handleInput} />
+                {/* Left Stick (Top) */}
+                <div className="stick-container relative z-10">
+                    <DPad onInput={handleInput} clickButton="L3" prefix="" />
                 </div>
 
-                {/* Capture Button (Square) - Visual only for now or mapped to something */}
-                <div className="absolute bottom-12 right-6 w-8 h-8 bg-slate-800 rounded mx-auto border border-slate-700 shadow-inner opacity-60"></div>
+                {/* D-Pad (Bottom) */}
+                <div className="dpad-container">
+                    <DirectionalButtons onInput={handleInput} />
+                </div>
             </div>
 
             {/* CENTER CONSOLE ZONE */}
-            <div className="zone-center">
+            <div className="zone-center py-2">
                 <button
                     className="center-btn btn-minus"
-                    onTouchStart={() => handleButtonPress('Select')}
-                    onTouchEnd={() => handleButtonRelease('Select')}
-                    onMouseDown={() => handleButtonPress('Select')}
-                    onMouseUp={() => handleButtonRelease('Select')}
-                    onMouseLeave={() => handleButtonRelease('Select')}
+                    onTouchStart={(e) => { e.preventDefault(); handleButtonPress('Minus'); }}
+                    onTouchEnd={(e) => { e.preventDefault(); handleButtonRelease('Minus'); }}
+                    onMouseDown={() => handleButtonPress('Minus')}
+                    onMouseUp={() => handleButtonRelease('Minus')}
                 >−</button>
 
-                <div className="player-indicator">
+                <div className="player-indicator my-1">
                     <div className={`player-badge player-${playerId}`}>
                         P{playerId}
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 mb-1">
                     <div className="w-1 h-1 bg-green-500 rounded-full shadow-[0_0_5px_lime]"></div>
                     <div className="w-1 h-1 bg-gray-600 rounded-full"></div>
                     <div className="w-1 h-1 bg-gray-600 rounded-full"></div>
@@ -63,25 +75,26 @@ export function Controller({ playerId, onInput }) {
 
                 <button
                     className="center-btn btn-plus"
-                    onTouchStart={() => handleButtonPress('Start')}
-                    onTouchEnd={() => handleButtonRelease('Start')}
-                    onMouseDown={() => handleButtonPress('Start')}
-                    onMouseUp={() => handleButtonRelease('Start')}
-                    onMouseLeave={() => handleButtonRelease('Start')}
+                    onTouchStart={(e) => { e.preventDefault(); handleButtonPress('Plus'); }}
+                    onTouchEnd={(e) => { e.preventDefault(); handleButtonRelease('Plus'); }}
+                    onMouseDown={() => handleButtonPress('Plus')}
+                    onMouseUp={() => handleButtonRelease('Plus')}
                 >+</button>
             </div>
 
-            {/* RIGHT CONTROLLER ZONE (RED) */}
+            {/* RIGHT CONTROLLER ZONE (RED-ISH) */}
             <div className="zone-right">
+                {/* R / ZR */}
                 <ShoulderButtons side="right" onInput={handleInput} />
 
-                <div className="mt-8">
+                {/* Action Buttons (Top) */}
+                <div className="action-container">
                     <ActionButtons onInput={handleInput} />
                 </div>
 
-                {/* Home Button (Circle with house icon) */}
-                <div className="absolute bottom-12 left-6 w-9 h-9 bg-slate-800 rounded-full border-4 border-slate-700/50 shadow-inner flex items-center justify-center opacity-60">
-                    <div className="w-4 h-4 bg-transparent border-2 border-slate-500 rounded-sm"></div>
+                {/* Right Stick (Bottom) */}
+                <div className="stick-container relative z-10">
+                    <DPad onInput={handleInput} clickButton="R3" prefix="RS_" />
                 </div>
             </div>
         </div>

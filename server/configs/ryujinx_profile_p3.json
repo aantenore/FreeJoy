@@ -1,0 +1,44 @@
+{
+  "left_joycon_stick": {
+    "stick_up": "F1",
+    "stick_down": "F2",
+    "stick_left": "F3",
+    "stick_right": "F4",
+    "stick_button": "F5"
+  },
+  "right_joycon_stick": {
+    "stick_up": "F6",
+    "stick_down": "F7",
+    "stick_left": "F8",
+    "stick_right": "F9",
+    "stick_button": "F10"
+  },
+  "left_joycon": {
+    "button_minus": "F11",
+    "button_l": "BracketLeft",
+    "button_zl": "Backslash",
+    "button_sl": "Unbound",
+    "button_sr": "Unbound",
+    "dpad_up": "Number9",
+    "dpad_down": "Number0",
+    "dpad_left": "Number8",
+    "dpad_right": "Minus"
+  },
+  "right_joycon": {
+    "button_plus": "F12",
+    "button_r": "BracketRight",
+    "button_zr": "Quote",
+    "button_sl": "Unbound",
+    "button_sr": "Unbound",
+    "button_x": "Semicolon",
+    "button_b": "Period",
+    "button_y": "Comma",
+    "button_a": "Slash"
+  },
+  "version": 1,
+  "backend": "WindowKeyboard",
+  "id": "2",
+  "name": "FreeJoy Player 3",
+  "controller_type": "ProController",
+  "player_index": "Player3"
+}
