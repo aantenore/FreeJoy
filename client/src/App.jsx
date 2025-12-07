@@ -112,8 +112,8 @@ function App() {
                 <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 pointer-events-none"></div>
 
                 {/* Header */}
-                <div className="relative z-10 text-center mb-8 mt-12 px-8 sm:px-12 overflow-visible">
-                    <h1 className="text-6xl font-black tracking-normal text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] to-[#FF4D6D] drop-shadow-lg mb-2 italic overflow-visible">FREEJOY</h1>
+                <div className="relative z-10 text-center mb-8 mt-12 px-12 overflow-visible">
+                    <h1 className="text-6xl font-black tracking-normal text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] to-[#FF4D6D] drop-shadow-lg mb-2 italic overflow-visible whitespace-nowrap pr-4">FREEJOY</h1>
                     <p className="text-xs font-bold tracking-[0.6em] text-white/40 uppercase">Scan to Connect</p>
                 </div>
 

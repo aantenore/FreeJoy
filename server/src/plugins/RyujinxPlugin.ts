@@ -3,10 +3,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // --- ROBOTJS MAPPING (Ryujinx Key Name -> RobotJS Key) ---
+// @hurdlegroup/robotjs uses these key names
 const RYUJINX_TO_ROBOTJS: Record<string, string> = {
     'A': 'a', 'B': 'b', 'C': 'c', 'D': 'd', 'E': 'e', 'F': 'f', 'G': 'g', 'H': 'h', 'I': 'i', 'J': 'j', 'K': 'k', 'L': 'l', 'M': 'm',
     'N': 'n', 'O': 'o', 'P': 'p', 'Q': 'q', 'R': 'r', 'S': 's', 'T': 't', 'U': 'u', 'V': 'v', 'W': 'w', 'X': 'x', 'Y': 'y', 'Z': 'z',
-    'Number0': '0', 'Number1': '1', 'Number2': '2', 'Number3': '3', 'Number4': '4', 'Number5': '5', 'Number6': '6', 'Number7': '7', 'Number8': '8', 'Number9': '9',
+    'Number0': '0', 'Number1': '1', 'Number2': '2', 'Number3': '3', 'Number4': '4',
+    'Number5': '5', 'Number6': '6', 'Number7': '7', 'Number8': '8', 'Number9': '9',
     'F1': 'f1', 'F2': 'f2', 'F3': 'f3', 'F4': 'f4', 'F5': 'f5', 'F6': 'f6', 'F7': 'f7', 'F8': 'f8', 'F9': 'f9', 'F10': 'f10', 'F11': 'f11', 'F12': 'f12',
     'Keypad0': 'numpad_0', 'Keypad1': 'numpad_1', 'Keypad2': 'numpad_2', 'Keypad3': 'numpad_3', 'Keypad4': 'numpad_4',
     'Keypad5': 'numpad_5', 'Keypad6': 'numpad_6', 'Keypad7': 'numpad_7', 'Keypad8': 'numpad_8', 'Keypad9': 'numpad_9',
@@ -16,10 +18,10 @@ const RYUJINX_TO_ROBOTJS: Record<string, string> = {
     'Enter': 'enter', 'Space': 'space', 'Tab': 'tab', 'Backspace': 'backspace', 'Escape': 'escape', 'CapsLock': 'capslock',
     'ShiftLeft': 'shift', 'ShiftRight': 'shift', 'ControlLeft': 'control', 'AltLeft': 'alt',
     'Home': 'home', 'End': 'end', 'PageUp': 'pageup', 'PageDown': 'pagedown', 'Insert': 'insert', 'Delete': 'delete',
-    'Minus': 'minus', 'Plus': 'equal', 'Equal': 'equal',
-    'BracketLeft': 'open_bracket', 'BracketRight': 'close_bracket',
-    'Backslash': 'backslash', 'Semicolon': 'semicolon', 'Quote': 'quote',
-    'Comma': 'comma', 'Period': 'period', 'Slash': 'slash', 'Backquote': '`'
+    'Minus': '-', 'Plus': '=', 'Equal': '=',
+    'BracketLeft': '[', 'BracketRight': ']',
+    'Backslash': '\\', 'Semicolon': ';', 'Quote': "'",
+    'Comma': ',', 'Period': '.', 'Slash': '/', 'Backquote': '`'
 };
 
 // --- LOGICAL BUTTONS (Client -> JSON Path) ---
@@ -53,8 +55,8 @@ const CLIENT_TO_CONFIG_PATH: Record<string, string[]> = {
 };
 
 export class RyujinxPlugin implements IPlugin {
-    name = "Ryujinx Keyboard (JSON Driven)";
-    version = "5.0.0";
+    name = "Ryujinx Keyboard (robotjs)";
+    version = "5.1.0";
     maxPlayers = 4;
     private robot: any;
     private currentPlayer: number = 1;
@@ -63,10 +65,24 @@ export class RyujinxPlugin implements IPlugin {
     private mappings: Record<number, Record<string, string>> = {};
 
     constructor() {
-        console.log('[Ryujinx] Initializing JSON-driven plugin...');
+        console.log('[Ryujinx] Initializing robotjs plugin...');
+        try {
+            this.robot = require('@hurdlegroup/robotjs');
+            console.log('[Ryujinx] ✓ @hurdlegroup/robotjs loaded');
+        } catch (err) {
+            console.error('[Ryujinx] ✗ Failed to load @hurdlegroup/robotjs:', err);
+        }
         this.loadProfilesFromJSON();
         this.parseMappings();
         console.log('[Ryujinx] Loaded profiles for players:', Object.keys(this.profiles).join(', '));
+    }
+
+    async init(): Promise<void> {
+        console.log('[Ryujinx] Plugin initialized');
+    }
+
+    async cleanup(): Promise<void> {
+        console.log('[Ryujinx] Plugin cleanup');
     }
 
     // Load profiles from JSON files in configs/ directory
@@ -99,34 +115,29 @@ export class RyujinxPlugin implements IPlugin {
         }
 
         if (Object.keys(this.profiles).length === 0) {
-            console.warn('[Ryujinx] ⚠ No valid profiles found in configs/');
+            console.warn('[Ryujinx] No profiles loaded! Creating empty mappings.');
         }
     }
 
-    async init(): Promise<void> {
-        // Initialize RobotJS
-        try {
-            this.robot = require('@hurdlegroup/robotjs');
-            const _ = this.robot.getScreenSize();
-            console.log('[Ryujinx] RobotJS initialized');
-        } catch (e) {
-            console.error('[Ryujinx] @hurdlegroup/robotjs not found – keyboard input disabled.');
-            this.robot = null;
-        }
-    }
-
-    async cleanup(): Promise<void> {
-        console.log('[Ryujinx] Cleanup');
-    }
-
+    // Parse profiles into mappings (Client Button -> robotjs key)
     private parseMappings() {
-        for (const [idStr, profile] of Object.entries(this.profiles)) {
-            const playerId = parseInt(idStr);
+        for (const [playerIdStr, profile] of Object.entries(this.profiles)) {
+            const playerId = parseInt(playerIdStr);
             const playerMap: Record<string, string> = {};
 
-            for (const [clientBtn, jsonPath] of Object.entries(CLIENT_TO_CONFIG_PATH)) {
+            // Auto-detect JoyCon type if not explicit
+            const isRightJoyCo = profile.controller_type === 'JoyconRight' || (!profile.controller_type && playerId % 2 === 0);
+
+            for (const [clientBtn, configPath] of Object.entries(CLIENT_TO_CONFIG_PATH)) {
+
+                // Dynamic path override for SL/SR on Right Joy-Cons
+                let effectivePath = configPath;
+                if (isRightJoyCo && (clientBtn === 'SL' || clientBtn === 'SR')) {
+                    effectivePath = ['right_joycon', clientBtn === 'SL' ? 'button_sl' : 'button_sr'];
+                }
+
                 let node: any = profile;
-                for (const key of jsonPath) {
+                for (const key of effectivePath) {
                     if (node) node = node[key];
                 }
 
@@ -134,10 +145,13 @@ export class RyujinxPlugin implements IPlugin {
                     const robotKey = RYUJINX_TO_ROBOTJS[node];
                     if (robotKey) {
                         playerMap[clientBtn] = robotKey;
+                    } else {
+                        console.warn(`[Ryujinx] Unknown key: ${node} for ${clientBtn}`);
                     }
                 }
             }
             this.mappings[playerId] = playerMap;
+            console.log(`[Ryujinx] P${playerId} mappings:`, Object.keys(playerMap).length, 'buttons');
         }
     }
 
@@ -152,10 +166,10 @@ export class RyujinxPlugin implements IPlugin {
         const key = mapping[button];
         if (key && this.robot) {
             try {
-                console.log(`[Ryujinx] P${playerIndex} ${button} → ${key} (${pressed ? 'DOWN' : 'UP'})`);
+                console.log(`[Ryujinx] P${playerIndex} ${button} → '${key}' (${pressed ? 'DOWN' : 'UP'})`);
                 this.robot.keyToggle(key, pressed ? 'down' : 'up');
             } catch (err) {
-                console.error(`[Ryujinx] Error toggling ${key}:`, err);
+                console.error(`[Ryujinx] Error with key '${key}':`, err);
             }
         } else if (!key) {
             console.warn(`[Ryujinx] P${playerIndex} ${button} → UNMAPPED`);
@@ -178,54 +192,49 @@ export class RyujinxPlugin implements IPlugin {
         }
 
         const stickMap = stick === 'left' ? profile.left_joycon_stick : profile.right_joycon_stick;
-        if (!stickMap) {
-            console.warn(`[Ryujinx] No ${stick} stick mapping for P${playerIndex}`);
-            return;
-        }
+        if (!stickMap) return;
 
-        const isUp = y > threshold;
-        const isDown = y < -threshold;
-        const isRight = x > threshold;
-        const isLeft = x < -threshold;
+        const directions = [
+            { axis: y, neg: 'stick_up', pos: 'stick_down', stateKey: `${stick}_y` },
+            { axis: x, neg: 'stick_left', pos: 'stick_right', stateKey: `${stick}_x` }
+        ];
 
-        const keys = {
-            [stickMap.stick_up]: isUp,
-            [stickMap.stick_down]: isDown,
-            [stickMap.stick_left]: isLeft,
-            [stickMap.stick_right]: isRight
-        };
+        for (const dir of directions) {
+            const ryujinxKey = dir.axis < -threshold ? stickMap[dir.neg] : (dir.axis > threshold ? stickMap[dir.pos] : null);
+            const robotKey = ryujinxKey && ryujinxKey !== 'Unbound' ? RYUJINX_TO_ROBOTJS[ryujinxKey] : null;
+            const wasActive = this.analogState[playerIndex][dir.stateKey];
 
-        for (const [keyName, shouldPress] of Object.entries(keys)) {
-            if (!keyName || keyName === 'Unbound') continue;
-
-            const robotKey = RYUJINX_TO_ROBOTJS[keyName];
-            if (!robotKey) continue;
-
-            const wasPressed = this.analogState[playerIndex][robotKey] || false;
-
-            if (shouldPress && !wasPressed) {
-                console.log(`[Ryujinx] P${playerIndex} ${stick} stick → ${keyName} (${robotKey}) DOWN`);
-                if (this.robot) try { this.robot.keyToggle(robotKey, 'down'); } catch (e) { }
-                this.analogState[playerIndex][robotKey] = true;
-            } else if (!shouldPress && wasPressed) {
-                console.log(`[Ryujinx] P${playerIndex} ${stick} stick → ${keyName} (${robotKey}) UP`);
-                if (this.robot) try { this.robot.keyToggle(robotKey, 'up'); } catch (e) { }
-                this.analogState[playerIndex][robotKey] = false;
+            if (robotKey && this.robot) {
+                if (!wasActive) {
+                    try { this.robot.keyToggle(robotKey, 'down'); } catch (e) { }
+                    this.analogState[playerIndex][dir.stateKey] = true;
+                }
+            } else if (wasActive) {
+                // Release previous key
+                const prevKey = dir.axis < 0 ? stickMap[dir.neg] : stickMap[dir.pos];
+                const prevRobotKey = prevKey ? RYUJINX_TO_ROBOTJS[prevKey] : null;
+                if (prevRobotKey && this.robot) {
+                    try { this.robot.keyToggle(prevRobotKey, 'up'); } catch (e) { }
+                }
+                this.analogState[playerIndex][dir.stateKey] = false;
             }
         }
     }
 
-    getProfile(playerIndex: number): any {
+    getPlayerProfile(playerIndex: number) {
         const profile = this.profiles[playerIndex];
-        if (!profile) {
-            console.warn(`[Ryujinx] No profile found for Player ${playerIndex}`);
-            return { type: playerIndex % 2 === 1 ? 'left_joycon' : 'right_joycon' };
-        }
-
+        if (!profile) return null;
+        const controllerType = profile.controller_type || (playerIndex % 2 === 1 ? 'JoyconLeft' : 'JoyconRight');
         return {
-            id: playerIndex,
-            type: profile.controller_type === 'JoyconLeft' ? 'left_joycon' : 'right_joycon',
-            name: profile.name || `Player ${playerIndex}`
+            type: controllerType === 'JoyconLeft' ? 'left_joycon' : 'right_joycon'
         };
+    }
+
+    setActivePlayer(playerIndex: number): void {
+        this.currentPlayer = playerIndex;
+    }
+
+    getActivePlayer(): number {
+        return this.currentPlayer;
     }
 }
