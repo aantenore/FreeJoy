@@ -86,7 +86,7 @@ function App() {
         // Generate URLs for each slot dynamically based on maxPlayers (default to 4 if missing)
         const maxPlayers = hostRoom.maxPlayers || 4;
 
-        // Joy-Con Colors
+        // Controller Unit Colors
         const playerConfigs = [
             { id: 1, color: 'from-cyan-400 to-blue-600', border: 'border-cyan-400', bg: 'bg-cyan-950/40', glow: 'shadow-cyan-500/20' }, // Neon Blue
             { id: 2, color: 'from-red-500 to-rose-600', border: 'border-red-500', bg: 'bg-rose-950/40', glow: 'shadow-red-500/20' },     // Neon Red
