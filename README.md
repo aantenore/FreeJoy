@@ -1,110 +1,95 @@
-# FreeJoy 2.0 🎮✨
+# FreeJoy - Universal Wireless Gamepad
 
-Transform your smartphone into a **premium wireless gamepad** for Ryujinx emulator. Features dual analog sticks, L3/R3 support, neon UI, and a technical CLI launcher for automated setup.
+FreeJoy is a full-stack controller solution that turns any database of mobile devices into low-latency gamepads for PC emulators. It features a Node.js/Socket.IO backend using `robotjs` for input emulation and a React frontend for the controller UI.
 
-> *Why buy when you can DIY?*
+![Preview](docs/preview.png)
 
----
+## ⚡ Main Features
 
-## 📸 Visual Showcase
+*   **Zero-Config Connection**: Scan a QR code to connect instantly.
+*   **Persistent Sessions**: Auto-reconnect logic restores player slots if the browser refreshes or device sleeps.
+*   **JSON-Driven Mappings**: Input configurations are defined in `server/configs/*.json` and enforced at runtime.
+*   **Smart Layouts**: 
+    *   **Single Unit Mode**: Automatically detects Player 1/3 (Left Unit) and Player 2/4 (Right Unit).
+    *   **Landscape Lock**: Enforces landscape orientation for maximum playability.
+    *   **Safe Area Handling**: Optimized for notched phones and tablets.
+*   **Native Integration**: Uses low-level keyboard hooks via `@hurdlegroup/robotjs` for near-zero latency.
 
-<table>
-<tr>
-<td width="33%" align="center">
-<img src="docs/gamepad.png" width="100%" alt="Mobile Gamepad"/><br/>
-<b>🎮 Wireless Controller 1</b><br/>
-<sub>Dual Sticks • L3/R3 Support • Force Landscape</sub>
-</td>
-</tr>
-<tr>
-<td width="33%" align="center">
-<img src="docs/gamepad_2.png" width="100%" alt="Mobile Gamepad"/><br/>
-<b>🎮 Wireless Controller 2</b><br/>
-<sub>Dual Sticks • L3/R3 Support • Force Landscape</sub>
-</td>
-</tr>
-<tr>
-<td width="50%" align="center">
-<img src="docs/host_qr.png" width="100%" alt="QR Code Host"/><br/>
-<b>📱 Instant Connection</b><br/>
-<sub>Scan QR code • Zero config • 4 Player Support</sub>
-</td>
-</tr>
-</table>
+## 🛠️ Architecture & Integration
 
-## ✨ Key Features
--   **Dual Analog Sticks**: Full left and right stick support. **Tap the center of the stick** to activate L3/R3.
--   **4-Player Ready**: Disjoint key mappings for 4 inputs on a single PC.
--   **Plugin-Driven Configs**: The server's `RyujinxPlugin` is the **single source of truth**. It automatically generates and updates the JSON config files in `server/configs/` to ensure your emulator inputs are always perfectly synced with the code.
--   **PowerShell Launcher**: `Launcher.ps1` handles dependencies, SSL certificates, and server startup.
--   **Smart Network**: Auto-detects server IP for proper QR code generation.
+FreeJoy is built on a modular plugin architecture designed to bridge web inputs with desktop applications.
 
----
+### Current Integration (Keyboard Emulation)
+Currently, the system uses the **PC Emulator Plugin** (`RyujinxPlugin.ts`) which acts as a "Virtual Keyboard".
+1.  **Mobile Client** sends input events via WebSocket (e.g., "Player 1 pressed A").
+2.  **Server** receives the event and routes it to the active plugin.
+3.  **Plugin** maps the logical input to a physical keyboard key using `robotjs` (e.g., "A" -> key "x").
+4.  **Target Application** (Emulator) detects the keystroke as if it were a physical keyboard press.
 
-## 🚀 Quick Start
+This approach ensures compatibility with *any* application that accepts keyboard input, while the JSON profile system (`server/configs/`) keeps the mappings synchronized between the server and the emulator.
 
-### 1. Start the Launcher
-Double-click `Launcher.bat` in the root folder.
+## 🔮 Roadmap & Future Development
 
-### 2. Setup (First Time)
-Select option `[1] Setup` using your arrow keys.
--   Installs Node.js dependencies for Server and Client.
--   Builds the React Client.
--   **Generates SSL certificates** (`key.pem`, `cert.pem`) automatically.
+We have big plans to expand FreeJoy beyond a local Wi-Fi controller:
 
-### 3. Start Server
-Select option `[2] Start Server`.
--   The server will launch on `https://localhost:3001`.
--   It will **automatically write the configuration files** to `server/configs/`.
--   Scan the QR code with your phone(s).
+*   **WAN / Internet Play**: A future "Base Internet" version will allow remote connections, enabling multiplayer gaming across different networks.
+*   **Dedicated Input Entities**: We plan to move beyond keyboard emulation to create dedicated virtual HID devices (Human Interface Devices) for each player. This will allow the OS to see 4 distinct controllers instead of one shared keyboard.
+*   **Multi-Plugin Support**: New plugins to support other emulators (e.g., Dolphin, Yuzu forks) and native PC games directly.
 
-### 4. Configure Ryujinx
-Navigate to `server/configs/`. You will find 4 JSON files (`ryujinx_profile_p1.json`, etc.).
-**Load these profiles in Ryujinx** (Options > Settings > Input) to map your controller instantly.
+## 🚀 Installation & Setup
 
----
+### Method 1: The Launcher (Recommended)
+The project includes a `Launcher.bat` (wrapper for `Launcher.ps1`) that handles the entire lifecycle:
 
-## 🏗️ Architecture & Tech Stack
+1.  Run `Launcher.bat` as Administrator.
+2.  Select **[1] Setup**:
+    *   Installs `npm` dependencies for server and client.
+    *   Builds the React client to `server/public`.
+    *   **Firewall Rules**: Automatically allows inbound traffic on port 3000/3001.
+3.  Select **[2] Start Server** to run the application.
 
-### Frontend (Client)
--   **Framework**: React 18 + Vite
--   **Input**: Virtual separate inputs for Left Stick, Right Stick, D-Pad, and Buttons.
--   **UX**: Optimized for Landscape usage with haptic feedback.
+### Method 2: Manual Setup
+If you prefer the command line:
+```bash
+# 1. Install Server Deps
+cd server && npm install
+# 2. Install Client Deps & Build
+cd ../client && npm install && npm run build
+# 3. Start Server
+cd ../server && npm start
+```
 
-### Backend (Server)
--   **Runtime**: Node.js + TypeScript
--   **Input Simulation**: Uses `@hurdlegroup/robotjs` to send low-level keyboard events.
--   **Config Management**: The plugin contains the "master" definition of all inputs and enforces them by writing to disk on startup.
+## 🎮 Emulator Configuration
 
-### CLI Launcher
--   **Language**: PowerShell (wrapped in Batch)
--   **Function**: Lightweight lifecycle management. The `.bat` file ensures easy execution without worrying about PowerShell execution policies.
+FreeJoy emulates a keyboard. You must map the keys in your emulator to match the server's configuration.
 
----
+1.  **Locate Profiles**: Go to `server/configs/`. You will see `profile_p1.json` through `p4.json`.
+2.  **Load in Emulator**:
+    *   Open Emulator Settings > Input.
+    *   Select **Player 1**.
+    *   Emulate via: **Handheld** or **Standard Controller**.
+    *   Map the keys as defined in `profile_p1.json`.
+    *   *Repeat for Players 2-4.*
 
-## 📱 Troubleshooting
--   **Device can't connect?** Ensure devices are on the same Wi-Fi. Check Firewall settings.
--   **Launcher doesn't open?** Try right-clicking `Launcher.bat` -> "Run as Administrator" if permission errors occur.
--   **Buttons don't update?** Clear your mobile browser cache if you recently updated the server.
+**Default Mapping Strategy:**
+To support 4 players on one keyboard without conflicts, we use specific key clusters:
+*   **P1 (Left Unit)**: WASD area + Q/E (Shoulders)
+*   **P2 (Right Unit)**: TFGH area + Y/V (Shoulders) [Numpad mapping also supported]
+*   **P3/P4**: Uses remaining keyboard zones (IJKL, Numpad).
 
----
+## 📱 Mobile Usage
 
-## ⚖️ Legal Disclaimer
-
-This software is provided for **educational and personal use only**. It is designed to work with the Ryujinx emulator for legitimate purposes, such as playing legally owned game backups.
-
-**Important Notes:**
-- This tool does not contain, distribute, or facilitate piracy of any copyrighted content.
-- Users are responsible for ensuring they own legal copies of any games they play.
-- The author is not responsible for any illegal or unauthorized use of this software.
-- Use of this software must comply with all applicable laws and regulations in your jurisdiction.
-
-By using this software, you agree to use it only for lawful purposes.
-
----
+1.  Open the host page (`http://localhost:3000`) on your PC.
+2.  Scan the QR code for your specific slot (P1, P2, P3, P4).
+3.  **iOS Users**: Tap "Share" -> "Add to Home Screen" to launch as a PWA.
+4.  **Troubleshooting**:
+    *   **"Player Joined (Auto-Assign)"**: This connects you to your last known slot. If you want a different slot, clear browser data.
+    *   **Vibration**: Requires a user interaction (tap) to enable on iOS first.
 
 ## 📄 License
-MIT
+MIT License - Free for personal and educational use.
+
+---
 
 ## 🤖 Built with Antigravity
 
@@ -114,7 +99,7 @@ This entire project was crafted with the assistance of **Antigravity** - Google 
 > — Arthur C. Clarke (probably)
 
 Special thanks to Antigravity for:
-- 🎨 Making the Joy-Con aesthetics actually look premium
+- 🎨 Making the Controller aesthetics actually look premium
 - 🐛 Debugging PowerShell scripts that shall not be named
 - 🎮 Remembering that D-Pads go on the LEFT side of controllers
 - 📱 Teaching me that Wi-Fi interfaces have many names (wlan, wl, wi-fi, wireless...)
