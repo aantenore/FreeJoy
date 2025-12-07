@@ -1,105 +1,7 @@
-.controller {
-    width: 100%;
-    height: 100vh;
-    height: 100dvh;
-    display: flex;
-    background-color: #1a1a1a;
-    overflow: hidden;
-}
+/* === LANDSCAPE-ONLY CONTROLLER LAYOUT === */
 
-.zone-left,
-.zone-right {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px;
-}
-
-.zone-left {
-    background: linear-gradient(135deg, #00C3E3 0%, #0088A3 100%);
-}
-
-.zone-right {
-    background: linear-gradient(135deg, #FF4554 0%, #C41E3A 100%);
-}
-
-.zone-center {
-    width: 55px;
-    background: #111;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-evenly;
-    padding: 8px 0;
-}
-
-/* Shoulder buttons */
-.shoulder-row {
-    width: 100%;
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    padding: 0 8px;
-}
-
-.shoulder-btn {
-    flex: 1;
-    max-width: 85px;
-    height: 26px;
-    background: #222;
-    border: none;
-    border-radius: 5px;
-    color: #888;
-    font-weight: bold;
-    font-size: 10px;
-}
-
-.shoulder-btn:active {
-    background: #000;
-    height: 30px;
-    border-radius: 50%;
-    background: #222;
-    border: none;
-    color: #555;
-    font-size: 16px;
-    font-weight: bold;
-}
-
-.center-btn:active {
-    color: #fff;
-}
-
-.player-badge {
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    padding: 3px 7px;
-    border-radius: 8px;
-    font-size: 10px;
-    font-weight: bold;
-}
-
-.led-group {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.led {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: #444;
-}
-
-.led-on {
-    background: #0f0;
-    box-shadow: 0 0 5px lime;
-}
-
-.orientation-warning {
+/* Portrait Blocking Overlay */
+.portrait-blocker {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.95);
@@ -111,4 +13,314 @@
     color: #fff;
     text-align: center;
     padding: 20px;
+}
+
+.portrait-blocker svg {
+    margin-bottom: 20px;
+    opacity: 0.8;
+}
+
+.portrait-blocker h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.portrait-blocker p {
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+.landscape-controller {
+
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+/* TOP ROW: All shoulder buttons equally distributed */
+.top-row {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 8px 12px;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.shoulder-btn-new {
+    flex: 1;
+    max-width: 100px;
+    height: 36px;
+    border-radius: 8px;
+    background: linear-gradient(to bottom, #333, #222);
+    border: 2px solid #444;
+    color: #ccc;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 3px 0 #111, 0 4px 8px rgba(0, 0, 0, 0.4);
+    transition: all 0.1s;
+}
+
+.shoulder-btn-new:active {
+    transform: translateY(3px);
+    box-shadow: 0 0 0 #111, inset 0 2px 4px rgba(0, 0, 0, 0.6);
+    color: #fff;
+}
+
+.system-btn-new {
+    width: 44px;
+    height: 36px;
+    border-radius: 50%;
+    background: #222;
+    border: 2px solid #444;
+    color: #888;
+    font-size: 20px;
+    font-weight: bold;
+    box-shadow: 0 3px 0 #111;
+    transition: all 0.1s;
+}
+
+.system-btn-new:active {
+    transform: translateY(3px);
+    box-shadow: none;
+    color: #fff;
+}
+
+/* MAIN AREA: Stick | LED | Buttons */
+.main-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+}
+
+.stick-zone {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scale(0.75);
+}
+
+/* CENTER BLACK STRIP */
+.center-strip {
+    width: 80px;
+    height: 100%;
+    background: #111;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+    padding: 15px 0;
+    border-radius: 1rem;
+    box-shadow:
+        inset 0 0 20px rgba(0, 0, 0, 0.8),
+        -5px 0 15px rgba(0, 0, 0, 0.5),
+        5px 0 15px rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(0, 0, 0, 0.5);
+}
+
+.center-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #222;
+    border: 2px solid #444;
+    color: #888;
+    font-size: 20px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 0 #000;
+    transition: all 0.1s;
+}
+
+.center-btn:active {
+    transform: translateY(3px);
+    box-shadow: none;
+    color: #fff;
+}
+
+.stick-click-btn {
+    font-size: 10px;
+    width: 36px;
+    height: 36px;
+}
+
+.led-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.led {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #333;
+    border: 1px solid #222;
+}
+
+.led-on {
+    background: #39FF14;
+    box-shadow: 0 0 6px #39FF14, 0 0 12px #39FF14;
+}
+
+
+
+.buttons-zone {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scale(0.75);
+}
+
+/* === ORIGINAL STYLES FOR DPAD/ANALOG === */
+
+.analog-stick {
+    width: 180px;
+    height: 180px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.analog-rim {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #3a3a3f, #2a2a2f);
+    box-shadow:
+        inset 0 -4px 8px rgba(0, 0, 0, 0.5),
+        inset 0 4px 8px rgba(255, 255, 255, 0.05),
+        0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.analog-center {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #1a1a1f, #0a0a0f);
+    box-shadow:
+        inset 0 -2px 6px rgba(0, 0, 0, 0.8),
+        inset 0 2px 6px rgba(255, 255, 255, 0.03),
+        0 4px 12px rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.05s ease-out, box-shadow 0.1s ease;
+    z-index: 2;
+    cursor: grab;
+}
+
+.analog-center:active {
+    cursor: grabbing;
+}
+
+.analog-center.active {
+    transform: scale(0.95);
+    box-shadow:
+        inset 0 2px 8px rgba(0, 0, 0, 0.9),
+        0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.analog-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #00E5FF, #00C3E3);
+    box-shadow:
+        0 0 12px rgba(0, 229, 255, 0.6),
+        0 0 24px rgba(0, 229, 255, 0.3),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.3);
+    transition: all 0.1s ease;
+}
+
+.analog-center.active .analog-dot {
+    background: linear-gradient(145deg, #FF3C50, #FF1744);
+    box-shadow:
+        0 0 16px rgba(255, 60, 80, 0.8),
+        0 0 32px rgba(255, 60, 80, 0.4),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Mobile height fixes */
+@media (max-height: 400px) {
+    .top-row {
+        padding: 4px 8px;
+    }
+
+    .shoulder-btn-new {
+        height: 28px;
+        font-size: 10px;
+    }
+
+    .system-btn-new {
+        width: 36px;
+        height: 28px;
+        font-size: 16px;
+    }
+
+    .stick-zone,
+    .buttons-zone {
+        transform: scale(0.6);
+    }
+
+    .led {
+        width: 6px;
+        height: 6px;
+    }
+}
+
+/* iPad / Tablet scaling */
+@media (min-width: 768px) and (min-height: 600px) {
+
+    .stick-zone,
+    .buttons-zone {
+        transform: scale(0.9);
+    }
+
+    .center-strip {
+        width: 100px;
+    }
+
+    .center-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
+
+    .stick-click-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 12px;
+    }
+
+    .shoulder-btn-new {
+        height: 44px;
+        font-size: 14px;
+        max-width: 120px;
+    }
+
+    .led {
+        width: 8px;
+        height: 8px;
+    }
+
+    .led-group {
+        gap: 6px;
+    }
 }
