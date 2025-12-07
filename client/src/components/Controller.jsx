@@ -5,13 +5,13 @@ import { DirectionalButtons } from './DirectionalButtons';
 import './Controller.css';
 
 /**
- * Controller Component - Single Joy-Con (Landscape Only)
+ * Controller Component - Single Unit (Landscape Only)
  * Layout: [Top: Shoulders] [Left: Stick] [Center: Black strip] [Right: Buttons]
  */
 export function Controller({ playerId, playerProfile, onInput, onAnalog, totalPlayers = 4 }) {
     const [isPortrait, setIsPortrait] = useState(false);
 
-    // Determine Joy-Con type from profile or playerId
+    // Determine Controller type from profile or playerId
     let isLeftJoyCon = playerId === 1 || playerId === 3;
     if (playerProfile?.type) {
         isLeftJoyCon = playerProfile.type === 'left_joycon';
