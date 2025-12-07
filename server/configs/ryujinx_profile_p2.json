@@ -1,0 +1,44 @@
+{
+  "left_joycon_stick": {
+    "stick_up": "Keypad8",
+    "stick_down": "Keypad2",
+    "stick_left": "Keypad4",
+    "stick_right": "Keypad6",
+    "stick_button": "Keypad5"
+  },
+  "right_joycon_stick": {
+    "stick_up": "Home",
+    "stick_down": "End",
+    "stick_left": "Delete",
+    "stick_right": "PageDown",
+    "stick_button": "Insert"
+  },
+  "left_joycon": {
+    "button_minus": "KeypadSubtract",
+    "button_l": "Keypad7",
+    "button_zl": "KeypadDecimal",
+    "button_sl": "Unbound",
+    "button_sr": "Unbound",
+    "dpad_up": "KeypadDivide",
+    "dpad_down": "Number0",
+    "dpad_left": "Keypad9",
+    "dpad_right": "Keypad3"
+  },
+  "right_joycon": {
+    "button_plus": "KeypadEnter",
+    "button_r": "KeypadMultiply",
+    "button_zr": "KeypadAdd",
+    "button_sl": "Unbound",
+    "button_sr": "Unbound",
+    "button_x": "Up",
+    "button_b": "Down",
+    "button_y": "Left",
+    "button_a": "Right"
+  },
+  "version": 1,
+  "backend": "WindowKeyboard",
+  "id": "1",
+  "name": "FreeJoy Player 2",
+  "controller_type": "ProController",
+  "player_index": "Player2"
+}

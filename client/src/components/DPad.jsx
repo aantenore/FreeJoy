@@ -4,40 +4,53 @@ import './DPad.css';
 /**
  * Analog Stick Component (Gamepad Style)
  * Draggable stick that follows finger/mouse movement
+ * Supports 'prefix' for differentiating Left/Right sticks
+ * Supports 'clickButton' for L3/R3 functionality via tap
  */
-export function DPad({ onInput }) {
+export function DPad({ onInput, clickButton, prefix = '' }) {
     const [stickPos, setStickPos] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const padRef = useRef(null);
     const activeDirection = useRef(null);
-    const lastEmitTime = useRef(0);
-    const THROTTLE_MS = 16; // 60Hz max (1000ms / 60 = ~16ms)
+    const startTime = useRef(0);
+    const startPos = useRef({ x: 0, y: 0 });
 
     const maxDistance = 35; // Maximum stick displacement from center
 
     const handleStart = (e) => {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         setIsDragging(true);
-        updateStickPosition(e);
+        startTime.current = Date.now();
 
-        // Enhanced haptic feedback on grab
-        if (navigator.vibrate) {
-            navigator.vibrate(15); // Slightly stronger for analog stick
-        }
+        const touch = e.touches ? e.touches[0] : e;
+        startPos.current = { x: touch.clientX, y: touch.clientY };
+
+        updateStickPosition(e);
+        if (navigator.vibrate) navigator.vibrate(15);
     };
 
     const handleMove = (e) => {
         if (!isDragging) return;
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         updateStickPosition(e);
     };
 
-    const handleEnd = () => {
+    const handleEnd = (e) => {
         setIsDragging(false);
         setStickPos({ x: 0, y: 0 });
 
+        // Tap Detection for L3/R3
+        const duration = Date.now() - startTime.current;
+
+        // If short duration and no direction triggered (approx stationary tap)
+        if (duration < 250 && !activeDirection.current && clickButton) {
+            onInput(clickButton, 1);
+            setTimeout(() => onInput(clickButton, 0), 100);
+            if (navigator.vibrate) navigator.vibrate(20);
+        }
+
         if (activeDirection.current) {
-            onInput(activeDirection.current, 0);
+            onInput(prefix + activeDirection.current, 0);
             activeDirection.current = null;
         }
     };
@@ -67,8 +80,9 @@ export function DPad({ onInput }) {
         const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
         let direction = null;
 
-        if (Math.abs(deltaX) < 5 && Math.abs(deltaY) < 5) {
-            direction = null; // Dead zone
+        // Deadzone of 10px
+        if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+            direction = null;
         } else if (angle >= -45 && angle < 45) {
             direction = 'Right';
         } else if (angle >= 45 && angle < 135) {
@@ -79,13 +93,15 @@ export function DPad({ onInput }) {
             direction = 'Left';
         }
 
-        // Send input only when direction changes
+        // Send input
         if (direction !== activeDirection.current) {
+            // Release old direction
             if (activeDirection.current) {
-                onInput(activeDirection.current, 0);
+                onInput(prefix + activeDirection.current, 0);
             }
+            // Press new direction
             if (direction) {
-                onInput(direction, 1);
+                onInput(prefix + direction, 1);
             }
             activeDirection.current = direction;
         }
@@ -93,7 +109,7 @@ export function DPad({ onInput }) {
 
     useEffect(() => {
         const handleGlobalMove = (e) => handleMove(e);
-        const handleGlobalEnd = () => handleEnd();
+        const handleGlobalEnd = (e) => handleEnd(e);
 
         if (isDragging) {
             document.addEventListener('mousemove', handleGlobalMove);

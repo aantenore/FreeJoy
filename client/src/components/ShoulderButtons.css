@@ -2,11 +2,10 @@
     display: flex;
     justify-content: center;
     gap: 12px;
-    width: 100%;
-    padding: 10px;
-    position: absolute;
-    top: 0;
-    left: 0;
+    width: 90%;
+    /* Slight margin on sides */
+    padding: 5px 0;
+    /* Removed absolute positioning to participate in flex flow */
 }
 
 .shoulder-btn {

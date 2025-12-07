@@ -241,7 +241,8 @@ function GamepadView({ roomId }) {
     return (
         <div className="app bg-slate-950 h-screen w-screen overflow-hidden overscroll-none touch-none">
             <Controller playerId={playerId} onInput={sendInput} />
-            <div className={`connection-status ${connected ? 'connected' : 'disconnected'} fixed top-4 right-4`}>
+            {/* Connection status hidden for cleaner UI - status visible in center LEDs */}
+            <div className="hidden">
                 <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'} shadow-[0_0_10px_currentColor]`}></div>
             </div>
             <InstallBanner />
