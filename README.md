@@ -2,17 +2,17 @@
 
 FreeJoy is a full-stack controller solution that turns any database of mobile devices into low-latency gamepads for PC emulators. It features a Node.js/Socket.IO backend using `robotjs` for input emulation and a React frontend for the controller UI.
 
-![Preview](docs/preview.png)
-
 ## ⚡ Main Features
 
 *   **Zero-Config Connection**: Scan a QR code to connect instantly.
     
     ![QR Screen](docs/qr_screen.png)
 
-*   **Pro Controller Mode**: Solo play mode with a full-featured Dual-Analog UI (simulating P1+P2 Joy-Cons simultaneously).
+*   **Controllers**: Solo play mode with a full-featured Dual-Analog UI (simulating P1+P2 Joy-Cons simultaneously).
     
     ![Pro UI](docs/pro_ui.png)
+    ![Left UI](docs/gamepad.png)
+    ![Right UI](docs/gamepad2.png)
 
 *   **Parallel Input Engine**: 12-process worker pool ensures zero input lag even with 4 active players.
 *   **Persistent Sessions**: Auto-reconnect logic restores player slots if the browser refreshes or device sleeps.
