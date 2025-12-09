@@ -80,6 +80,11 @@ export function DPad({ onInput, clickButton, prefix = '' }) {
         activeTouchId.current = null;
         setStickPos({ x: 0, y: 0 });
 
+        if (onAnalog) {
+            const stickName = prefix.startsWith('RS') ? 'right' : 'left';
+            onAnalog(stickName, 0, 0);
+        }
+
         // Tap Detection for L3/R3
         const duration = Date.now() - startTime.current;
 
@@ -116,6 +121,25 @@ export function DPad({ onInput, clickButton, prefix = '' }) {
 
         setStickPos({ x: deltaX, y: deltaY });
 
+        // === ANALOG OUTPUT ===
+        if (onAnalog) {
+            // Normalize to -1.0 -> 1.0 range
+            // Y is usually inverted for gamepads (Up = negative), but let's check standard.
+            // Usually Up is -1.0 in HTML canvas, but Gamepads often use Up = -1.0.
+            // Let's standardise: Right = +X, Down = +Y.
+            const normX = deltaX / maxDistance;
+            const normY = deltaY / maxDistance;
+
+            // Determine stick name based on prefix
+            const stickName = prefix.startsWith('RS') ? 'right' : 'left';
+
+            // Throttle or send? React state updates are fast. 
+            // The parent likely throttles or socket emits directly.
+            onAnalog(stickName, normX, normY);
+            return; // Skip digital logic
+        }
+
+        // === DIGITAL FALLBACK ===
         // Determine direction based on angle
         const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
         let direction = null;
@@ -146,6 +170,7 @@ export function DPad({ onInput, clickButton, prefix = '' }) {
             activeDirection.current = direction;
         }
     };
+
 
     useEffect(() => {
         const handleGlobalMove = (e) => handleMove(e);

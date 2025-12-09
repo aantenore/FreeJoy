@@ -91,6 +91,7 @@ export function Controller({ playerId, playerProfile, onInput, onAnalog, totalPl
                     <div className="stick-zone">
                         <DPad
                             onInput={handleInput}
+                            onAnalog={onAnalog}
                             clickButton={stickClickLabel}
                             prefix={isLeftJoyCon ? "" : "RS_"}
                         />
