@@ -4,7 +4,7 @@
     "stick_down": "Down",
     "stick_left": "Left",
     "stick_right": "Right",
-    "stick_button": "Unbound"
+    "stick_button": "Insert"
   },
   "right_joycon_stick": {
     "stick_up": "Unbound",
@@ -14,11 +14,11 @@
     "stick_button": "Unbound"
   },
   "left_joycon": {
-    "button_minus": "Space",
-    "button_l": "Number9",
-    "button_zl": "Number0",
-    "button_sl": "Number5",
-    "button_sr": "Number6",
+    "button_minus": "Backspace",
+    "button_l": "Number5",
+    "button_zl": "Number6",
+    "button_sl": "Home",
+    "button_sr": "End",
     "dpad_up": "Z",
     "dpad_down": "X",
     "dpad_left": "C",
