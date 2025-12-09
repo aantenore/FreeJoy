@@ -69,18 +69,6 @@ export class RyujinxPlugin implements IPlugin {
         this.parseMappings();
     }
 
-    async init() {
-        console.log('[Ryujinx] Plugin init called');
-    }
-
-    async cleanup() {
-        console.log('[Ryujinx] Plugin cleanup called');
-        for (const w of Object.values(this.workers)) {
-            w.kill();
-        }
-        this.workers = {};
-    }
-
     private loadProfiles() {
         const configDir = path.join(process.cwd(), 'configs');
         if (!fs.existsSync(configDir)) return;
