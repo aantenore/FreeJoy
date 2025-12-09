@@ -56,7 +56,7 @@ export function VirtualController({ onInput, onAnalog, playerId, profile, totalP
                                 stickSize={65}
                                 baseColor="rgba(0,0,0,0)"
                                 stickColor="#1a1a1a"
-                                throttle={50}
+                                throttle={16}
                                 move={(e) => onAnalog(isLeftJoyCon ? 'left' : 'right', (e.x ?? 0) / 55, -(e.y ?? 0) / 55)}
                                 stop={() => onAnalog(isLeftJoyCon ? 'left' : 'right', 0, 0)}
                             />
