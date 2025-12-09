@@ -44,7 +44,6 @@ export function ProController({ roomId }: { roomId: string }) {
         const sock = socketIndex === 1 ? socket1.current : socket2.current;
         if (sock && sock.connected) {
             sock.emit('input', { btn, state });
-            // Haptic feedback
             if (state === 1 && navigator.vibrate) navigator.vibrate(10);
         }
     };
@@ -67,13 +66,11 @@ export function ProController({ roomId }: { roomId: string }) {
         <div className="w-screen h-dvh bg-slate-900 flex flex-row overflow-hidden select-none touch-none">
             {/* === LEFT SIDE (Player 1) === */}
             <div className="flex-1 bg-gradient-to-br from-[#00C3E3] to-[#0088A3] p-2 flex flex-col justify-between relative border-r-4 border-black/20">
-                {/* Status Indicator P1 */}
                 <div className={clsx(
                     "absolute top-2 left-2 w-3 h-3 rounded-full shadow-lg z-50",
                     status1 === 'connected' ? "bg-green-400" : "bg-red-400 animate-pulse"
                 )} />
 
-                {/* Top Row: L / ZL / Minus */}
                 <div className="flex justify-between items-start mb-1">
                     <div className="flex gap-2">
                         <ShoulderBtn label="ZL" onInput={(b, s) => sendInput(1, b, s)} />
@@ -82,9 +79,7 @@ export function ProController({ roomId }: { roomId: string }) {
                     <RoundBtn label="Minus" icon="−" onInput={(b, s) => sendInput(1, b, s)} />
                 </div>
 
-                {/* Main: Stick (Top) + DPad (Bottom) */}
                 <div className="flex-1 flex flex-col items-center justify-evenly w-full">
-                    {/* Left Stick */}
                     <div className="relative p-2 bg-black/10 rounded-full border border-white/5">
                         <Joystick
                             size={80}
@@ -95,13 +90,11 @@ export function ProController({ roomId }: { roomId: string }) {
                             move={(e) => sendAnalog(1, 'left', (e.x || 0) / 40, -(e.y || 0) / 40)}
                             stop={() => sendAnalog(1, 'left', 0, 0)}
                         />
-                        {/* L3 tucked in corner */}
                         <div className="absolute -top-4 -right-4 transform scale-75">
                             <RoundBtn label="L3" icon="L3" onInput={(b, s) => sendInput(1, b, s)} />
                         </div>
                     </div>
 
-                    {/* D-Pad */}
                     <div className="transform scale-90">
                         <DPadCluster onInput={(b, s) => sendInput(1, b, s)} />
                     </div>
@@ -117,13 +110,11 @@ export function ProController({ roomId }: { roomId: string }) {
 
             {/* === RIGHT SIDE (Player 2) === */}
             <div className="flex-1 bg-gradient-to-br from-[#FF4554] to-[#C41E3A] p-2 flex flex-col justify-between relative border-l-4 border-black/20">
-                {/* Status Indicator P2 */}
                 <div className={clsx(
                     "absolute top-2 right-2 w-2 h-2 rounded-full shadow-lg z-50",
                     status2 === 'connected' ? "bg-green-400" : "bg-red-400 animate-pulse"
                 )} />
 
-                {/* Top Row: R / ZR / Plus */}
                 <div className="flex justify-between items-start mb-1 flex-row-reverse">
                     <div className="flex gap-1">
                         <ShoulderBtn label="ZR" onInput={(b, s) => sendInput(2, b, s)} />
@@ -132,14 +123,11 @@ export function ProController({ roomId }: { roomId: string }) {
                     <RoundBtn label="Plus" icon="+" onInput={(b, s) => sendInput(2, b, s)} />
                 </div>
 
-                {/* Main: Buttons (Top) + Stick (Bottom) */}
                 <div className="flex-1 flex flex-col items-center justify-evenly w-full">
-                    {/* ABXY */}
                     <div className="transform scale-90">
                         <ABXYCluster onInput={(b, s) => sendInput(2, b, s)} />
                     </div>
 
-                    {/* Right Stick */}
                     <div className="relative p-2 bg-black/10 rounded-full border border-white/5">
                         <Joystick
                             size={80}
@@ -150,7 +138,6 @@ export function ProController({ roomId }: { roomId: string }) {
                             move={(e) => sendAnalog(2, 'right', (e.x || 0) / 40, -(e.y || 0) / 40)}
                             stop={() => sendAnalog(2, 'right', 0, 0)}
                         />
-                        {/* R3 tucked in corner */}
                         <div className="absolute -top-4 -left-4 transform scale-75">
                             <RoundBtn label="R3" icon="R3" onInput={(b, s) => sendInput(2, b, s)} />
                         </div>
@@ -161,15 +148,14 @@ export function ProController({ roomId }: { roomId: string }) {
     );
 }
 
-// === HELPER UI COMPONENTS (Tailwind) ===
-
+// === HELPER COMPONENTS ===
 function ShoulderBtn({ label, onInput }: any) {
     return (
         <button
             className="w-16 h-10 rounded-lg bg-black/40 border-2 border-white/10 text-white font-bold shadow-md active:bg-white/20 active:scale-95 transition-all"
-            onPointerDown={(e) => onInput(label, 1)}
-            onPointerUp={(e) => onInput(label, 0)}
-            onPointerLeave={(e) => onInput(label, 0)}
+            onPointerDown={() => onInput(label, 1)}
+            onPointerUp={() => onInput(label, 0)}
+            onPointerLeave={() => onInput(label, 0)}
         >
             {label}
         </button>
@@ -180,9 +166,9 @@ function RoundBtn({ label, icon, onInput }: any) {
     return (
         <button
             className="w-10 h-10 rounded-full bg-black/60 border border-white/20 text-white font-bold shadow-lg flex items-center justify-center hover:bg-black/80 active:scale-95"
-            onPointerDown={(e) => onInput(label, 1)}
-            onPointerUp={(e) => onInput(label, 0)}
-            onPointerLeave={(e) => onInput(label, 0)}
+            onPointerDown={() => onInput(label, 1)}
+            onPointerUp={() => onInput(label, 0)}
+            onPointerLeave={() => onInput(label, 0)}
         >
             {icon}
         </button>
@@ -191,7 +177,7 @@ function RoundBtn({ label, icon, onInput }: any) {
 
 function DPadCluster({ onInput }: any) {
     return (
-        <div className="grid grid-cols-3 gap-1 w-32 h-32 rotate-0">
+        <div className="grid grid-cols-3 gap-1 w-32 h-32">
             <div />
             <DPadBtn icon="▲" label="DPadUp" onInput={onInput} />
             <div />
@@ -209,9 +195,9 @@ function DPadBtn({ icon, label, onInput }: any) {
     return (
         <button
             className="w-full h-full bg-black/40 rounded flex items-center justify-center text-white active:bg-white/30 active:scale-90"
-            onPointerDown={(e) => onInput(label, 1)}
-            onPointerUp={(e) => onInput(label, 0)}
-            onPointerLeave={(e) => onInput(label, 0)}
+            onPointerDown={() => onInput(label, 1)}
+            onPointerUp={() => onInput(label, 0)}
+            onPointerLeave={() => onInput(label, 0)}
         >
             {icon}
         </button>
@@ -241,9 +227,9 @@ function ABXYBtn({ label, color, onInput }: any) {
                 "w-full h-full rounded-full bg-black/40 border-2 border-white/10 flex items-center justify-center text-xl font-black shadow-lg active:scale-90 active:bg-white/20 transition-all",
                 color
             )}
-            onPointerDown={(e) => onInput(label, 1)}
-            onPointerUp={(e) => onInput(label, 0)}
-            onPointerLeave={(e) => onInput(label, 0)}
+            onPointerDown={() => onInput(label, 1)}
+            onPointerUp={() => onInput(label, 0)}
+            onPointerLeave={() => onInput(label, 0)}
         >
             {label}
         </button>

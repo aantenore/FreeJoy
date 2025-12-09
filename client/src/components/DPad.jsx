@@ -74,7 +74,12 @@ export function DPad({ onInput, clickButton, prefix = '' }) {
             deltaY = Math.sin(angle) * maxDistance;
         }
 
+        const normalizedX = deltaX / maxDistance; // -1 .. 1
+        const normalizedY = deltaY / maxDistance; // -1 .. 1
+
         setStickPos({ x: deltaX, y: deltaY });
+
+        onInput(prefix + 'axis', { x: normalizedX, y: normalizedY });
 
         // Determine direction based on angle
         const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
