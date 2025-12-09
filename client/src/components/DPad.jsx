@@ -14,29 +14,70 @@ export function DPad({ onInput, clickButton, prefix = '' }) {
     const activeDirection = useRef(null);
     const startTime = useRef(0);
     const startPos = useRef({ x: 0, y: 0 });
+    const activeTouchId = useRef(null); // Track the specific finger ID
 
     const maxDistance = 35; // Maximum stick displacement from center
 
     const handleStart = (e) => {
+        // If already dragging, ignore new touches on the stick area
+        if (isDragging) return;
+
         if (e.cancelable) e.preventDefault();
         setIsDragging(true);
         startTime.current = Date.now();
 
-        const touch = e.touches ? e.touches[0] : e;
-        startPos.current = { x: touch.clientX, y: touch.clientY };
+        let clientX, clientY;
+        if (e.changedTouches) {
+            const touch = e.changedTouches[0];
+            activeTouchId.current = touch.identifier;
+            clientX = touch.clientX;
+            clientY = touch.clientY;
+        } else {
+            // Mouse event
+            activeTouchId.current = 'mouse';
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
 
-        updateStickPosition(e);
+        startPos.current = { x: clientX, y: clientY };
+
+        // Immediate update on start
+        updateStickPosition(clientX, clientY);
         if (navigator.vibrate) navigator.vibrate(15);
     };
 
     const handleMove = (e) => {
         if (!isDragging) return;
         if (e.cancelable) e.preventDefault();
-        updateStickPosition(e);
+
+        let clientX, clientY;
+
+        if (activeTouchId.current === 'mouse') {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        } else {
+            // Find the active touch
+            const touch = Array.from(e.changedTouches).find(t => t.identifier === activeTouchId.current);
+            if (!touch) return; // This event doesn't involve our stick finger
+            clientX = touch.clientX;
+            clientY = touch.clientY;
+        }
+
+        updateStickPosition(clientX, clientY);
     };
 
     const handleEnd = (e) => {
+        if (!isDragging) return;
+
+        // Check if the ending event is for our stick
+        if (activeTouchId.current !== 'mouse') {
+            const touch = Array.from(e.changedTouches).find(t => t.identifier === activeTouchId.current);
+            if (!touch) return; // Not our finger lifting
+        }
+
+        // Reset
         setIsDragging(false);
+        activeTouchId.current = null;
         setStickPos({ x: 0, y: 0 });
 
         // Tap Detection for L3/R3
@@ -55,16 +96,15 @@ export function DPad({ onInput, clickButton, prefix = '' }) {
         }
     };
 
-    const updateStickPosition = (e) => {
+    const updateStickPosition = (clientX, clientY) => {
         if (!padRef.current) return;
 
-        const touch = e.touches ? e.touches[0] : e;
         const rect = padRef.current.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
-        let deltaX = touch.clientX - centerX;
-        let deltaY = touch.clientY - centerY;
+        let deltaX = clientX - centerX;
+        let deltaY = clientY - centerY;
 
         // Limit stick movement to maxDistance
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -114,8 +154,9 @@ export function DPad({ onInput, clickButton, prefix = '' }) {
         if (isDragging) {
             document.addEventListener('mousemove', handleGlobalMove);
             document.addEventListener('mouseup', handleGlobalEnd);
-            document.addEventListener('touchmove', handleGlobalMove);
+            document.addEventListener('touchmove', handleGlobalMove, { passive: false });
             document.addEventListener('touchend', handleGlobalEnd);
+            document.addEventListener('touchcancel', handleGlobalEnd);
         }
 
         return () => {
@@ -123,6 +164,7 @@ export function DPad({ onInput, clickButton, prefix = '' }) {
             document.removeEventListener('mouseup', handleGlobalEnd);
             document.removeEventListener('touchmove', handleGlobalMove);
             document.removeEventListener('touchend', handleGlobalEnd);
+            document.removeEventListener('touchcancel', handleGlobalEnd);
         };
     }, [isDragging]);
 
