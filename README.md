@@ -8,11 +8,11 @@ FreeJoy is a full-stack controller solution that turns any database of mobile de
     
     ![QR Screen](docs/qr_screen.png)
 
-*   **Controllers**: Solo play mode with a full-featured Dual-Analog UI (simulating P1+P2 Joy-Cons simultaneously).
+*   **Controllers**: Left, Right playmode + Solo play mode with a full-featured Dual-Analog UI (simulating P1+P2 Joy-Cons simultaneously).
     
     ![Pro UI](docs/pro_ui.png)
-    ![Left UI](docs/gamepad.png)
-    ![Right UI](docs/gamepad2.png)
+    ![Left UI](docs/left_ui.png)
+    ![Right UI](docs/right_ui.png)
 
 *   **Parallel Input Engine**: 12-process worker pool ensures zero input lag even with 4 active players.
 *   **Persistent Sessions**: Auto-reconnect logic restores player slots if the browser refreshes or device sleeps.
