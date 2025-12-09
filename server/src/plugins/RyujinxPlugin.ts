@@ -58,72 +58,187 @@ export class RyujinxPlugin implements IPlugin {
     name = "Ryujinx Keyboard (Multi-Process Lazy)";
     version = "6.1.0-LAZY";
     maxPlayers = 4;
-    private currentPlayer = 1;
+    private currentPlayer: number = 1;
+
     private profiles: Record<number, any> = {};
     private mappings: Record<number, Record<string, string>> = {};
-    private workers: Record<number, ChildProcess> = {};
+
+    // Worker Pool: [playerId] -> { button, axisX, axisY }
+    private workers: Record<number, { btn: ChildProcess, axisX: ChildProcess, axisY: ChildProcess }> = {};
 
     constructor() {
-        console.log('[Ryujinx] Initializing StatefulWorker Plugin...');
-        this.loadProfiles();
+        console.log('[Ryujinx] Initializing Multi-Process Plugin (Lazy Loading)...');
+        this.loadProfilesFromJSON();
         this.parseMappings();
     }
 
-    private loadProfiles() {
-        const configDir = path.join(process.cwd(), 'configs');
-        if (!fs.existsSync(configDir)) return;
-
-        const files = fs.readdirSync(configDir).filter(f => f.match(/^ryujinx_profile_p\d+\.json$/));
-        for (const file of files) {
-            const match = file.match(/p(\d+)/);
-            if (!match) continue;
-            const playerId = parseInt(match[1]);
-            const content = fs.readFileSync(path.join(configDir, file), 'utf-8');
-            this.profiles[playerId] = JSON.parse(content);
-        }
-    }
-
-    private parseMappings() {
-        for (const [playerStr, profile] of Object.entries(this.profiles)) {
-            const playerId = parseInt(playerStr);
-            const map: Record<string, string> = {};
-            for (const [clientBtn, cfgPath] of Object.entries(CLIENT_TO_CONFIG_PATH)) {
-                let node: any = profile;
-                for (const key of cfgPath) node = node?.[key];
-                if (node && node !== 'Unbound') map[clientBtn] = RYUJINX_TO_ROBOTJS[node] || node;
-            }
-            this.mappings[playerId] = map;
-        }
-    }
-
-    private getOrSpawnWorker(playerId: number) {
+    private getOrSpawnWorkers(playerId: number) {
         if (this.workers[playerId]) return this.workers[playerId];
-        const workerPath = path.join(__dirname, 'statefulWorker.js');
-        this.workers[playerId] = fork(workerPath);
+
+        const btnPath = path.join(__dirname, '../workers/buttonWorker.js');
+        const axisPath = path.join(__dirname, '../workers/axisWorker.js');
+
+        // Check if worker files exist (Debug)
+        if (!fs.existsSync(btnPath)) console.error('[Ryujinx] Missing Worker:', btnPath);
+
+        const btnWorker = fork(btnPath);
+        const axisXWorker = fork(axisPath);
+        const axisYWorker = fork(axisPath);
+
+        this.workers[playerId] = {
+            btn: btnWorker,
+            axisX: axisXWorker,
+            axisY: axisYWorker
+        };
+        console.log(`[Ryujinx] Lazy-Spawned 3 workers for P${playerId}`);
         return this.workers[playerId];
     }
 
-    sendButtonPress(playerIndex: number, button: string, pressed: boolean) {
-        const mapping = this.mappings[playerIndex];
-        const worker = this.getOrSpawnWorker(playerIndex);
-        if (!mapping || !worker) return;
-        const key = mapping[button];
-        if (key) worker.send({ buttons: pressed ? [key] : [] });
+    async init(): Promise<void> {
+        console.log('[Ryujinx] Plugin initialized');
     }
 
-    sendAnalogInput(playerIndex: number, stick: 'left' | 'right', x: number, y: number) {
+    async cleanup(): Promise<void> {
+        console.log('[Ryujinx] Cleaning up workers...');
+        for (const i in this.workers) {
+            this.workers[i].btn.kill();
+            this.workers[i].axisX.kill();
+            this.workers[i].axisY.kill();
+        }
+    }
+
+    // Load profiles from JSON files in configs/ directory
+    private loadProfilesFromJSON() {
+        const configDir = path.join(process.cwd(), 'configs');
+
+        if (!fs.existsSync(configDir)) {
+            console.error('[Ryujinx] Config directory not found:', configDir);
+            return;
+        }
+
+        // Load all ryujinx_profile_p*.json files
+        const files = fs.readdirSync(configDir).filter(f => f.match(/^ryujinx_profile_p\d+\.json$/));
+
+        for (const file of files) {
+            const match = file.match(/ryujinx_profile_p(\d+)\.json/);
+            if (!match) continue;
+
+            const playerId = parseInt(match[1]); // p1.json -> Player 1
+            const filePath = path.join(configDir, file);
+
+            try {
+                const content = fs.readFileSync(filePath, 'utf-8');
+                const profile = JSON.parse(content);
+                this.profiles[playerId] = profile;
+                console.log(`[Ryujinx] ✓ Loaded ${file} for Player ${playerId}`);
+            } catch (err) {
+                console.error(`[Ryujinx] ✗ Failed to load ${file}:`, err);
+            }
+        }
+    }
+
+    // Parse profiles into mappings (Client Button -> robotjs key)
+    private parseMappings() {
+        for (const [playerIdStr, profile] of Object.entries(this.profiles)) {
+            const playerId = parseInt(playerIdStr);
+            const playerMap: Record<string, string> = {};
+
+            // Auto-detect JoyCon type if not explicit
+            const isRightJoyCo = profile.controller_type === 'JoyconRight' || (!profile.controller_type && playerId % 2 === 0);
+
+            for (const [clientBtn, configPath] of Object.entries(CLIENT_TO_CONFIG_PATH)) {
+
+                // Dynamic path override for SL/SR on Right Joy-Cons
+                let effectivePath = configPath;
+                if (isRightJoyCo && (clientBtn === 'SL' || clientBtn === 'SR')) {
+                    effectivePath = ['right_joycon', clientBtn === 'SL' ? 'button_sl' : 'button_sr'];
+                }
+
+                let node: any = profile;
+                for (const key of effectivePath) {
+                    if (node) node = node[key];
+                }
+
+                if (node && typeof node === 'string' && node !== 'Unbound') {
+                    const robotKey = RYUJINX_TO_ROBOTJS[node];
+                    if (robotKey) {
+                        playerMap[clientBtn] = robotKey;
+                    }
+                }
+            }
+            this.mappings[playerId] = playerMap;
+        }
+    }
+
+    sendButtonPress(playerIndex: number, button: string, pressed: boolean): void {
+        const mapping = this.mappings[playerIndex];
+        // Ensure workers exist logic moved here
+        const workers = this.getOrSpawnWorkers(playerIndex);
+
+        if (!mapping || !workers) return;
+
+        const key = mapping[button];
+        if (key) {
+            // Dispatch to Button Worker
+            workers.btn.send({
+                key: key,
+                state: pressed ? 'down' : 'up'
+            });
+        }
+    }
+
+    sendAnalogInput(playerIndex: number, stick: 'left' | 'right', x: number, y: number): void {
         const profile = this.profiles[playerIndex];
-        const worker = this.getOrSpawnWorker(playerIndex);
-        if (!profile || !worker) return;
+        // Ensure workers exist logic moved here
+        const workers = this.getOrSpawnWorkers(playerIndex);
+
+        if (!profile || !workers) return;
+
         const stickMap = stick === 'left' ? profile.left_joycon_stick : profile.right_joycon_stick;
         if (!stickMap) return;
 
-        const xMap = { negKey: stickMap.stick_left ? RYUJINX_TO_ROBOTJS[stickMap.stick_left] : null, posKey: stickMap.stick_right ? RYUJINX_TO_ROBOTJS[stickMap.stick_right] : null };
-        const yMap = { negKey: stickMap.stick_up ? RYUJINX_TO_ROBOTJS[stickMap.stick_up] : null, posKey: stickMap.stick_down ? RYUJINX_TO_ROBOTJS[stickMap.stick_down] : null };
+        // X Axis
+        const leftKey = stickMap['stick_left'] && stickMap['stick_left'] !== 'Unbound' ? RYUJINX_TO_ROBOTJS[stickMap['stick_left']] : null;
+        const rightKey = stickMap['stick_right'] && stickMap['stick_right'] !== 'Unbound' ? RYUJINX_TO_ROBOTJS[stickMap['stick_right']] : null;
 
-        worker.send({ axes: { x, y }, axisMapping: { x: xMap, y: yMap }, buttons: [] });
+        if (leftKey || rightKey) {
+            workers.axisX.send({
+                val: x,
+                negKey: leftKey,
+                posKey: rightKey
+            });
+        }
+
+        // Y Axis
+        const upKey = stickMap['stick_up'] && stickMap['stick_up'] !== 'Unbound' ? RYUJINX_TO_ROBOTJS[stickMap['stick_up']] : null;
+        const downKey = stickMap['stick_down'] && stickMap['stick_down'] !== 'Unbound' ? RYUJINX_TO_ROBOTJS[stickMap['stick_down']] : null;
+
+        if (upKey || downKey) {
+            workers.axisY.send({
+                val: y,
+                negKey: upKey,
+                posKey: downKey
+            });
+        }
     }
 
-    setActivePlayer(playerIndex: number) { this.currentPlayer = playerIndex; }
-    getActivePlayer(): number { return this.currentPlayer; }
+    getPlayerProfile(playerIndex: number) {
+        // Pre-warm workers on join (optional, good for latency)
+        this.getOrSpawnWorkers(playerIndex);
+
+        const profile = this.profiles[playerIndex];
+        if (!profile) return null;
+        const controllerType = profile.controller_type || (playerIndex % 2 === 1 ? 'JoyconLeft' : 'JoyconRight');
+        return {
+            type: controllerType === 'JoyconLeft' ? 'left_joycon' : 'right_joycon'
+        };
+    }
+
+    setActivePlayer(playerIndex: number): void {
+        this.currentPlayer = playerIndex;
+    }
+
+    getActivePlayer(): number {
+        return this.currentPlayer;
+    }
 }
