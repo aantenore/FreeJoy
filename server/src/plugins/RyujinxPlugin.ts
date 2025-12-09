@@ -179,6 +179,7 @@ export class RyujinxPlugin implements IPlugin {
 
         const key = mapping[button];
         if (key) {
+            console.log(`[Ryujinx] Button ${button} mapped to Key: ${key} (${pressed ? 'down' : 'up'})`);
             // Dispatch to Button Worker
             workers.btn.send({
                 key: key,

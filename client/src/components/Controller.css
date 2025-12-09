@@ -39,6 +39,7 @@
     flex-direction: column;
     overflow: hidden;
     position: relative;
+    touch-action: none;
 }
 
 /* TOP ROW: All shoulder buttons equally distributed */
