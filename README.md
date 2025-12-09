@@ -7,6 +7,14 @@ FreeJoy is a full-stack controller solution that turns any database of mobile de
 ## ⚡ Main Features
 
 *   **Zero-Config Connection**: Scan a QR code to connect instantly.
+    
+    ![QR Screen](docs/qr_screen.png)
+
+*   **Pro Controller Mode**: Solo play mode with a full-featured Dual-Analog UI (simulating P1+P2 Joy-Cons simultaneously).
+    
+    ![Pro UI](docs/pro_ui.png)
+
+*   **Parallel Input Engine**: 12-process worker pool ensures zero input lag even with 4 active players.
 *   **Persistent Sessions**: Auto-reconnect logic restores player slots if the browser refreshes or device sleeps.
 *   **JSON-Driven Mappings**: Input configurations are defined in `server/configs/*.json` and enforced at runtime.
 *   **Smart Layouts**: 
@@ -17,16 +25,39 @@ FreeJoy is a full-stack controller solution that turns any database of mobile de
 
 ## 🛠️ Architecture & Integration
 
-FreeJoy is built on a modular plugin architecture designed to bridge web inputs with desktop applications.
+FreeJoy is built on a modular, high-performance architecture.
+
+### 15-Process Parallel Backend
+To ensure absolute responsiveness, the server spawns dedicated worker processes for every input channel:
+*   **Main Server**: Handles Game State & WebSocket routing.
+*   **Input Workers**: 3 dedicated Node.js processes **per player** (Total 12 workers).
+    *   `ButtonWorker`: Handles digital button presses immediately.
+    *   `AxisXWorker`: Handles horizontal analog calculations.
+    *   `AxisYWorker`: Handles vertical analog calculations.
+
+**Lazy Loading**: Workers are only spawned when a player actually connects or interacts, keeping resource usage minimal when idle.
 
 ### Current Integration (Keyboard Emulation)
 Currently, the system uses the **PC Emulator Plugin** (`RyujinxPlugin.ts`) which acts as a "Virtual Keyboard".
-1.  **Mobile Client** sends input events via WebSocket (e.g., "Player 1 pressed A").
-2.  **Server** receives the event and routes it to the active plugin.
-3.  **Plugin** maps the logical input to a physical keyboard key using `robotjs` (e.g., "A" -> key "x").
-4.  **Target Application** (Emulator) detects the keystroke as if it were a physical keyboard press.
+1.  **Mobile Client** sends input events via WebSocket (optimized 60Hz updates).
+2.  **Server** routes the event to the specific player's worker pool.
+3.  **Worker** executes the system call via `robotjs` in a separate thread.
+4.  **Target Application** depends on predefined key mappings (stored in `server/configs/`).
 
-This approach ensures compatibility with *any* application that accepts keyboard input, while the JSON profile system (`server/configs/`) keeps the mappings synchronized between the server and the emulator.
+## 🎮 Modes & Mappings
+
+### 1. Multiplayer Mode (4-Player Split)
+Designed for titles like *Mario Kart* or *Mario Party*.
+*   **P1 & P3 (Left Joy-Cons)**: Mapped to disjoint left-keyboard clusters.
+*   **P2 & P4 (Right Joy-Cons)**: Mapped to disjoint right-keyboard clusters.
+*   **Conflict-Free**: All 56 inputs across 4 controllers are unique.
+
+### 2. Pro Controller Mode (Solo)
+Designed for single-player adventures (e.g., *Zelda*, *Odyssey*).
+*   **Access**: Scan the 5th QR Code ("Pro Controller") or visit `/?type=pro`.
+*   **Dual Socket**: The client opens **two** connections simultaneously (P1 + P2).
+*   **Combined Input**: The left side of the screen drives the P1 socket, the right side drives the P2 socket.
+*   **Zero Config**: Works with the standard P1/P2 emulator configuration. No need to remap Ryujinx!
 
 ## 🔮 Roadmap & Future Development
 

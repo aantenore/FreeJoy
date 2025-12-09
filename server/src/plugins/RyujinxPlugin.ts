@@ -1,9 +1,9 @@
 import { IPlugin } from './IPlugin';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fork, ChildProcess } from 'child_process';
 
 // --- ROBOTJS MAPPING (Ryujinx Key Name -> RobotJS Key) ---
-// @hurdlegroup/robotjs uses these key names
 const RYUJINX_TO_ROBOTJS: Record<string, string> = {
     'A': 'a', 'B': 'b', 'C': 'c', 'D': 'd', 'E': 'e', 'F': 'f', 'G': 'g', 'H': 'h', 'I': 'i', 'J': 'j', 'K': 'k', 'L': 'l', 'M': 'm',
     'N': 'n', 'O': 'o', 'P': 'p', 'Q': 'q', 'R': 'r', 'S': 's', 'T': 't', 'U': 'u', 'V': 'v', 'W': 'w', 'X': 'x', 'Y': 'y', 'Z': 'z',
@@ -55,26 +55,43 @@ const CLIENT_TO_CONFIG_PATH: Record<string, string[]> = {
 };
 
 export class RyujinxPlugin implements IPlugin {
-    name = "Ryujinx Keyboard (robotjs)";
-    version = "5.1.0";
+    name = "Ryujinx Keyboard (Multi-Process Lazy)";
+    version = "6.1.0-LAZY";
     maxPlayers = 4;
-    private robot: any;
     private currentPlayer: number = 1;
 
     private profiles: Record<number, any> = {};
     private mappings: Record<number, Record<string, string>> = {};
 
+    // Worker Pool: [playerId] -> { button, axisX, axisY }
+    private workers: Record<number, { btn: ChildProcess, axisX: ChildProcess, axisY: ChildProcess }> = {};
+
     constructor() {
-        console.log('[Ryujinx] Initializing robotjs plugin...');
-        try {
-            this.robot = require('@hurdlegroup/robotjs');
-            console.log('[Ryujinx] ✓ @hurdlegroup/robotjs loaded');
-        } catch (err) {
-            console.error('[Ryujinx] ✗ Failed to load @hurdlegroup/robotjs:', err);
-        }
+        console.log('[Ryujinx] Initializing Multi-Process Plugin (Lazy Loading)...');
         this.loadProfilesFromJSON();
         this.parseMappings();
-        console.log('[Ryujinx] Loaded profiles for players:', Object.keys(this.profiles).join(', '));
+    }
+
+    private getOrSpawnWorkers(playerId: number) {
+        if (this.workers[playerId]) return this.workers[playerId];
+
+        const btnPath = path.join(__dirname, '../workers/buttonWorker.js');
+        const axisPath = path.join(__dirname, '../workers/axisWorker.js');
+
+        // Check if worker files exist (Debug)
+        if (!fs.existsSync(btnPath)) console.error('[Ryujinx] Missing Worker:', btnPath);
+
+        const btnWorker = fork(btnPath);
+        const axisXWorker = fork(axisPath);
+        const axisYWorker = fork(axisPath);
+
+        this.workers[playerId] = {
+            btn: btnWorker,
+            axisX: axisXWorker,
+            axisY: axisYWorker
+        };
+        console.log(`[Ryujinx] Lazy-Spawned 3 workers for P${playerId}`);
+        return this.workers[playerId];
     }
 
     async init(): Promise<void> {
@@ -82,7 +99,12 @@ export class RyujinxPlugin implements IPlugin {
     }
 
     async cleanup(): Promise<void> {
-        console.log('[Ryujinx] Plugin cleanup');
+        console.log('[Ryujinx] Cleaning up workers...');
+        for (const i in this.workers) {
+            this.workers[i].btn.kill();
+            this.workers[i].axisX.kill();
+            this.workers[i].axisY.kill();
+        }
     }
 
     // Load profiles from JSON files in configs/ directory
@@ -113,10 +135,6 @@ export class RyujinxPlugin implements IPlugin {
                 console.error(`[Ryujinx] ✗ Failed to load ${file}:`, err);
             }
         }
-
-        if (Object.keys(this.profiles).length === 0) {
-            console.warn('[Ryujinx] No profiles loaded! Creating empty mappings.');
-        }
     }
 
     // Parse profiles into mappings (Client Button -> robotjs key)
@@ -145,83 +163,69 @@ export class RyujinxPlugin implements IPlugin {
                     const robotKey = RYUJINX_TO_ROBOTJS[node];
                     if (robotKey) {
                         playerMap[clientBtn] = robotKey;
-                    } else {
-                        console.warn(`[Ryujinx] Unknown key: ${node} for ${clientBtn}`);
                     }
                 }
             }
             this.mappings[playerId] = playerMap;
-            console.log(`[Ryujinx] P${playerId} mappings:`, Object.keys(playerMap).length, 'buttons');
         }
     }
 
     sendButtonPress(playerIndex: number, button: string, pressed: boolean): void {
-        this.currentPlayer = playerIndex;
         const mapping = this.mappings[playerIndex];
-        if (!mapping) {
-            console.warn(`[Ryujinx] No mapping for Player ${playerIndex}`);
-            return;
-        }
+        // Ensure workers exist logic moved here
+        const workers = this.getOrSpawnWorkers(playerIndex);
+
+        if (!mapping || !workers) return;
 
         const key = mapping[button];
-        if (key && this.robot) {
-            try {
-                console.log(`[Ryujinx] P${playerIndex} ${button} → '${key}' (${pressed ? 'DOWN' : 'UP'})`);
-                this.robot.keyToggle(key, pressed ? 'down' : 'up');
-            } catch (err) {
-                console.error(`[Ryujinx] Error with key '${key}':`, err);
-            }
-        } else if (!key) {
-            console.warn(`[Ryujinx] P${playerIndex} ${button} → UNMAPPED`);
+        if (key) {
+            // Dispatch to Button Worker
+            workers.btn.send({
+                key: key,
+                state: pressed ? 'down' : 'up'
+            });
         }
     }
 
-    // State tracking for analog-to-digital (prevents spamming keyToggle)
-    private analogState: Record<number, Record<string, boolean>> = {};
-
     sendAnalogInput(playerIndex: number, stick: 'left' | 'right', x: number, y: number): void {
-        const threshold = 0.5;
-        this.currentPlayer = playerIndex;
-
-        if (!this.analogState[playerIndex]) this.analogState[playerIndex] = {};
-
         const profile = this.profiles[playerIndex];
-        if (!profile) {
-            console.warn(`[Ryujinx] No profile for Player ${playerIndex} analog`);
-            return;
-        }
+        // Ensure workers exist logic moved here
+        const workers = this.getOrSpawnWorkers(playerIndex);
+
+        if (!profile || !workers) return;
 
         const stickMap = stick === 'left' ? profile.left_joycon_stick : profile.right_joycon_stick;
         if (!stickMap) return;
 
-        const directions = [
-            { axis: y, neg: 'stick_up', pos: 'stick_down', stateKey: `${stick}_y` },
-            { axis: x, neg: 'stick_left', pos: 'stick_right', stateKey: `${stick}_x` }
-        ];
+        // X Axis
+        const leftKey = stickMap['stick_left'] && stickMap['stick_left'] !== 'Unbound' ? RYUJINX_TO_ROBOTJS[stickMap['stick_left']] : null;
+        const rightKey = stickMap['stick_right'] && stickMap['stick_right'] !== 'Unbound' ? RYUJINX_TO_ROBOTJS[stickMap['stick_right']] : null;
 
-        for (const dir of directions) {
-            const ryujinxKey = dir.axis < -threshold ? stickMap[dir.neg] : (dir.axis > threshold ? stickMap[dir.pos] : null);
-            const robotKey = ryujinxKey && ryujinxKey !== 'Unbound' ? RYUJINX_TO_ROBOTJS[ryujinxKey] : null;
-            const wasActive = this.analogState[playerIndex][dir.stateKey];
+        if (leftKey || rightKey) {
+            workers.axisX.send({
+                val: x,
+                negKey: leftKey,
+                posKey: rightKey
+            });
+        }
 
-            if (robotKey && this.robot) {
-                if (!wasActive) {
-                    try { this.robot.keyToggle(robotKey, 'down'); } catch (e) { }
-                    this.analogState[playerIndex][dir.stateKey] = true;
-                }
-            } else if (wasActive) {
-                // Release previous key
-                const prevKey = dir.axis < 0 ? stickMap[dir.neg] : stickMap[dir.pos];
-                const prevRobotKey = prevKey ? RYUJINX_TO_ROBOTJS[prevKey] : null;
-                if (prevRobotKey && this.robot) {
-                    try { this.robot.keyToggle(prevRobotKey, 'up'); } catch (e) { }
-                }
-                this.analogState[playerIndex][dir.stateKey] = false;
-            }
+        // Y Axis
+        const upKey = stickMap['stick_up'] && stickMap['stick_up'] !== 'Unbound' ? RYUJINX_TO_ROBOTJS[stickMap['stick_up']] : null;
+        const downKey = stickMap['stick_down'] && stickMap['stick_down'] !== 'Unbound' ? RYUJINX_TO_ROBOTJS[stickMap['stick_down']] : null;
+
+        if (upKey || downKey) {
+            workers.axisY.send({
+                val: y,
+                negKey: upKey,
+                posKey: downKey
+            });
         }
     }
 
     getPlayerProfile(playerIndex: number) {
+        // Pre-warm workers on join (optional, good for latency)
+        this.getOrSpawnWorkers(playerIndex);
+
         const profile = this.profiles[playerIndex];
         if (!profile) return null;
         const controllerType = profile.controller_type || (playerIndex % 2 === 1 ? 'JoyconLeft' : 'JoyconRight');
