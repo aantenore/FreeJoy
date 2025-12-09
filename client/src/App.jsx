@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import QRCode from "react-qr-code";
 import { useGamepad } from './hooks/useGamepad';
 import { Controller } from './components/Controller';
+import { ProController } from './components/ProController';
 import { InstallBanner } from './components/InstallBanner';
 import './App.css';
 
@@ -12,10 +13,17 @@ function App() {
     const [mode, setMode] = useState('loading'); // 'loading' | 'host' | 'gamepad'
     const [activeRoom, setActiveRoom] = useState(null);
     const [hostRoom, setHostRoom] = useState(null);
+    const [isPro, setIsPro] = useState(false);
 
     // Initial Routing Logic
     useEffect(() => {
         const path = window.location.pathname;
+        const searchParams = new URLSearchParams(window.location.search);
+
+        // Check for Pro Mode
+        if (searchParams.get('type') === 'pro') {
+            setIsPro(true);
+        }
 
         // ROUTE: /pad -> Gamepad Mode (Stateless)
         if (path === '/pad') {
@@ -69,14 +77,7 @@ function App() {
     }
 
     if (mode === 'host') {
-        if (!hostRoom) return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 animate-gradient-xy"></div>
-                <div className="relative z-10 flex flex-col items-center animate-pulse">
-                    <p className="text-xl font-bold">Initializing Server...</p>
-                </div>
-            </div>
-        );
+        if (!hostRoom) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white relative overflow-hidden"><div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 animate-gradient-xy"></div><div className="relative z-10 flex flex-col items-center animate-pulse"><p className="text-xl font-bold">Initializing Server...</p></div></div>;
 
         const serverIp = hostRoom.serverIp || window.location.hostname;
         const port = window.location.port ? `:${window.location.port}` : '';
@@ -94,16 +95,28 @@ function App() {
             { id: 4, color: 'from-fuchsia-500 to-purple-600', border: 'border-fuchsia-500', bg: 'bg-fuchsia-950/40', glow: 'shadow-fuchsia-500/20' } // Neon Purple
         ];
 
-        const playerUrls = Array.from({ length: maxPlayers }, (_, i) => {
+        // Initialize with Pro Controller (Requested by User)
+        const playerUrls = [{
+            id: 99,
+            url: `${baseUrl}?type=pro`,
+            color: 'from-amber-400 to-orange-600',
+            border: 'border-amber-400',
+            bg: 'bg-amber-950/40',
+            glow: 'shadow-amber-500/20',
+            label: 'Pro Controller'
+        }];
+
+        // Add Standard Players (1-4)
+        for (let i = 0; i < maxPlayers; i++) {
             const id = i + 1;
             const config = playerConfigs[i % 4];
-            return {
+            playerUrls.push({
                 id,
                 url: `${baseUrl}?slot=${id}`,
                 label: `Player ${id}`,
                 ...config
-            };
-        });
+            });
+        }
 
         return (
             <div className="h-screen w-full flex flex-col items-center relative overflow-y-auto bg-slate-900 p-4 pb-20 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
@@ -140,7 +153,7 @@ function App() {
                                 <QRCode value={p.url} size={140} level="M" fgColor="#0f172a" />
                             </div>
                             <div className={`mt-5 px-5 py-1.5 rounded-full border ${p.border} bg-black/40 text-[10px] font-bold text-white uppercase tracking-widest group-hover:bg-white text-white group-hover:text-black transition-colors`}>
-                                Join Slot {p.id}
+                                Join {p.label}
                             </div>
                         </a>
                     ))}
@@ -148,14 +161,21 @@ function App() {
 
 
                 {/* Footer */}
-                < div className="relative z-10 mt-12 text-white/20 text-xs font-mono text-center" >
+                <div className="relative z-10 mt-12 text-white/20 text-xs font-mono text-center">
                     <p>Server running at:</p>
                     <p className="select-all">{baseUrl}</p>
-                </div >
-            </div >
+                </div>
+            </div>
         );
     }
 
+    // GAMEPAD MODE
+    // If Pro Mode is detected
+    if (isPro) {
+        return <ProController roomId={activeRoom} />;
+    }
+
+    // Standard Gamepad Mode
     return <GamepadView roomId={activeRoom} />;
 }
 
