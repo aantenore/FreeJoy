@@ -1,0 +1,44 @@
+{
+    "left_joycon_stick": {
+        "stick_up": "W",
+        "stick_down": "S",
+        "stick_left": "A",
+        "stick_right": "D",
+        "stick_button": "E"
+    },
+    "right_joycon_stick": {
+        "stick_up": "I",
+        "stick_down": "K",
+        "stick_left": "J",
+        "stick_right": "L",
+        "stick_button": "O"
+    },
+    "left_joycon": {
+        "button_minus": "T",
+        "button_l": "Q",
+        "button_zl": "R",
+        "button_sl": "F",
+        "button_sr": "G",
+        "dpad_up": "Number1",
+        "dpad_down": "Number2",
+        "dpad_left": "Number3",
+        "dpad_right": "Number4"
+    },
+    "right_joycon": {
+        "button_plus": "P",
+        "button_r": "U",
+        "button_zr": "Y",
+        "button_sl": "H",
+        "button_sr": "B",
+        "button_x": "Number8",
+        "button_b": "N",
+        "button_y": "Number7",
+        "button_a": "M"
+    },
+    "version": 1,
+    "backend": "WindowKeyboard",
+    "id": "0_pro",
+    "name": "FreeJoy Pro [Combined]",
+    "controller_type": "ProController",
+    "player_index": "Player1"
+}
