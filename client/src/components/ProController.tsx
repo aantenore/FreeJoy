@@ -20,7 +20,32 @@ export function ProController({ roomId }: { roomId: string }) {
             // Generate unique client ID for this device
             const clientId = localStorage.getItem('clientId') || `pro-${Date.now()}`;
             localStorage.setItem('clientId', clientId);
-            s.emit('join', { roomId, clientId });
+
+            // Get device name from user agent
+            const getDeviceName = () => {
+                const ua = navigator.userAgent;
+                if (/iPhone/.test(ua)) return 'iPhone';
+                if (/iPad/.test(ua)) return 'iPad';
+                if (/Android/.test(ua)) {
+                    const match = ua.match(/Android.*; ([^)]+)\)/);
+                    return match ? match[1] : 'Android Device';
+                }
+                if (/Windows/.test(ua)) return 'Windows PC';
+                if (/Mac/.test(ua)) return 'Mac';
+                return 'Unknown Device';
+            };
+
+            // Check if user has a saved nickname, otherwise prompt
+            let deviceName = localStorage.getItem('deviceNickname');
+            if (!deviceName) {
+                const autoDetected = getDeviceName();
+                deviceName = prompt(`Enter a name for this device (e.g. "${autoDetected} di Antonio"):`, autoDetected) || autoDetected;
+                localStorage.setItem('deviceNickname', deviceName);
+            }
+
+            console.log(`[Client] Device name: "${deviceName}"`);
+
+            s.emit('join', { roomId, clientId, deviceName });
         });
 
         s.on('joined', (data: { playerId: number }) => {
@@ -29,10 +54,23 @@ export function ProController({ roomId }: { roomId: string }) {
             setStatus('connected');
         });
 
+        s.on('kicked', (data: { reason: string }) => {
+            // Clear stored IDs so player doesn't auto-rejoin
+            localStorage.removeItem('clientId');
+            localStorage.removeItem('deviceNickname');
+            alert(`You were kicked: ${data.reason}`);
+            window.location.href = '/'; // Redirect to home instead of reload
+        });
+
         s.on('disconnect', () => setStatus('disconnected'));
         s.on('error', (err: any) => {
             console.error("Connection error:", err);
-            setStatus('error');
+            if (err.code === 'ROOM_FULL') {
+                alert('Room is full! Maximum 4 players.');
+                window.location.href = '/';
+            } else {
+                setStatus('error');
+            }
         });
 
         socket.current = s;
@@ -140,7 +178,7 @@ export function ProController({ roomId }: { roomId: string }) {
                                     baseColor="rgba(0,0,0,0)"
                                     stickColor="#1a1a1a"
                                     throttle={30}
-                                    move={(e: any) => sendAnalog('left', (e.x || 0) / 20, -(e.y || 0) / 20)}
+                                    move={(e: any) => sendAnalog('left', e.x || 0, -(e.y || 0))}
                                     stop={() => sendAnalog('left', 0, 0)}
                                 />
                             </div>
@@ -193,7 +231,7 @@ export function ProController({ roomId }: { roomId: string }) {
                                     baseColor="rgba(0,0,0,0)"
                                     stickColor="#1a1a1a"
                                     throttle={30}
-                                    move={(e: any) => sendAnalog('right', (e.x || 0) / 20, -(e.y || 0) / 20)}
+                                    move={(e: any) => sendAnalog('right', e.x || 0, -(e.y || 0))}
                                     stop={() => sendAnalog('right', 0, 0)}
                                 />
                             </div>

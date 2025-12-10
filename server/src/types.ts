@@ -4,6 +4,7 @@ export type Player = {
     socketId?: string;    // Current socket ID (can change on reconnect)
     connected: boolean;
     lastPing: number;
+    deviceName?: string;  // Device name from user agent
 };
 
 export type RoomState = {

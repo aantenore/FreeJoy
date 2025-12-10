@@ -134,6 +134,11 @@ def main():
                     y = cmd.get('y', 0.0)
                     handle_analog(player_id, stick, x, y)
                 
+                elif action == 'init':
+                    # Pre-create controller so emulator sees it
+                    get_or_create_controller(player_id)
+                    log(f"P{player_id} controller initialized")
+                
                 elif action == 'disconnect':
                     handle_disconnect(player_id)
                 
