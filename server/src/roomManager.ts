@@ -7,6 +7,7 @@ export class RoomManager {
     private players: Map<number, Player> = new Map(); // Slot ID (1-4) -> Player
     private MAX_PLAYERS: number;
     private cachedServerIp: string; // Cache IP for performance
+    private kickedClients: Set<string> = new Set(); // Track kicked clientIds
 
     constructor(maxPlayers: number = 4) {
         this.roomId = uuidv4().split('-')[0].toUpperCase();
@@ -29,13 +30,20 @@ export class RoomManager {
         return this.players.size >= this.MAX_PLAYERS;
     }
 
-    public join(clientId: string, socketId: string): Player | null {
+    public join(clientId: string, socketId: string, deviceName?: string): Player | null {
+        // Prevent kicked players from rejoining
+        if (this.kickedClients.has(clientId)) {
+            console.log(`[Room] Blocked kicked client ${clientId} from rejoining`);
+            return null;
+        }
+
         // 1. Check if I already have ANY slot (Reconnect)
         for (const [slot, player] of this.players.entries()) {
             if (player.clientId === clientId) {
                 player.socketId = socketId;
                 player.connected = true;
                 player.lastPing = Date.now();
+                if (deviceName) player.deviceName = deviceName;
                 console.log(`[Room] Player ${slot} Reconnected`);
                 return player;
             }
@@ -49,10 +57,11 @@ export class RoomManager {
                     clientId,
                     socketId,
                     connected: true,
-                    lastPing: Date.now()
+                    lastPing: Date.now(),
+                    deviceName
                 };
                 this.players.set(i, newPlayer);
-                console.log(`[Room] Player ${i} Joined (Auto-Assigned)`);
+                console.log(`[Room] Player ${i} Joined (Auto-Assigned)${deviceName ? ` - ${deviceName}` : ''}`);
                 return newPlayer;
             }
         }
@@ -147,5 +156,36 @@ export class RoomManager {
             players: Array.from(this.players.values()),
             maxPlayers: this.MAX_PLAYERS
         };
+    }
+
+    public getPlayersList(): Array<{ playerId: number; connected: boolean; deviceName?: string }> {
+        return Array.from(this.players.values()).map(p => ({
+            playerId: p.id,
+            connected: p.connected,
+            deviceName: p.deviceName
+        }));
+    }
+
+    public kickPlayer(playerId: number): Player | null {
+        const player = this.players.get(playerId);
+        if (player) {
+            this.players.delete(playerId);
+            this.kickedClients.add(player.clientId); // Prevent rejoin
+            console.log(`[Room] Player ${playerId} kicked (clientId: ${player.clientId})`);
+            return player;
+        }
+        return null;
+    }
+
+    public reset(): Player[] {
+        // Get all current players before clearing
+        const allPlayers = Array.from(this.players.values());
+
+        // Clear everything
+        this.players.clear();
+        this.kickedClients.clear();
+
+        console.log(`[Room] Room reset - ${allPlayers.length} players removed`);
+        return allPlayers;
     }
 }

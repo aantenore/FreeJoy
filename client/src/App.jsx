@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import QRCode from "react-qr-code";
 import { ProController } from './components/ProController';
 import { InstallBanner } from './components/InstallBanner';
+import io from 'socket.io-client';
 import './App.css';
 
 /**
@@ -11,6 +12,7 @@ function App() {
     const [mode, setMode] = useState('loading'); // 'loading' | 'host' | 'gamepad'
     const [activeRoom, setActiveRoom] = useState(null);
     const [hostRoom, setHostRoom] = useState(null);
+    const [players, setPlayers] = useState([]);
 
     // Initial Routing Logic
     useEffect(() => {
@@ -53,6 +55,21 @@ function App() {
         }
     }, [mode]);
 
+    // WebSocket for players list (host mode only)
+    useEffect(() => {
+        if (mode === 'host') {
+            const socket = io();
+            setHostSocket(socket);
+            socket.on('players_list', (list) => {
+                setPlayers(list);
+            });
+            socket.emit('get_players'); // Request initial list
+            return () => socket.disconnect();
+        }
+    }, [mode]);
+
+    const [hostSocket, setHostSocket] = useState(null);
+
     if (mode === 'loading') {
         return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Loading...</div>;
     }
@@ -91,8 +108,9 @@ function App() {
                     <p className="text-xs font-bold tracking-[0.6em] text-white/40 uppercase">Scan to Connect</p>
                 </div>
 
-                {/* Single QR Code */}
-                <div className="relative z-10 flex justify-center w-full">
+                {/* QR Code + Players List - Side by Side */}
+                <div className="relative z-10 flex flex-col lg:flex-row gap-8 w-full max-w-6xl items-start justify-center">
+                    {/* QR Code */}
                     <a
                         href={qrCodeUrl}
                         target="_blank"
@@ -101,7 +119,7 @@ function App() {
                             p-8 rounded-[2rem] flex flex-col items-center 
                             shadow-amber-500/20 hover:shadow-[0_0_40px_rgba(255,255,255,0.15)]
                             transition-all duration-300 hover:-translate-y-2 cursor-pointer
-                            w-full sm:w-96"
+                            w-full sm:w-96 shrink-0"
                     >
                         <h3 className="text-5xl font-black italic bg-clip-text text-transparent bg-gradient-to-br from-amber-400 to-orange-600 mb-8 drop-shadow-sm">
                             Join
@@ -116,13 +134,73 @@ function App() {
                             Players will be assigned slots 1-4 automatically
                         </p>
                     </a>
+
+                    {/* Connected Players List */}
+                    <div className="flex-1 w-full">
+                        <h2 className="text-2xl font-bold text-white/80 mb-4">Connected Players</h2>
+                        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl p-6">
+                            {players.length === 0 ? (
+                                <p className="text-white/40 text-sm text-center py-8">No players connected yet...</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {players.map((player) => (
+                                        <div
+                                            key={player.playerId}
+                                            className="flex items-center justify-between bg-white/5 rounded-xl p-4 border border-white/10"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${player.connected ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                                    }`}>
+                                                    P{player.playerId}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white font-semibold">{player.deviceName || `Player ${player.playerId}`}</p>
+                                                    <p className={`text-sm ${player.connected ? 'text-green-400' : 'text-red-400'}`}>
+                                                        {player.connected ? 'Connected' : 'Disconnected'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    if (hostSocket) {
+                                                        hostSocket.emit('kick_player', { playerId: player.playerId });
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-lg font-bold transition-colors active:scale-95"
+                                            >
+                                                Kick
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
 
-                {/* Footer */}
-                <div className="relative z-10 mt-12 text-white/20 text-xs font-mono text-center">
-                    <p>Server running at:</p>
-                    <p className="select-all">{baseUrl}</p>
+                {/* Footer with Reset Button */}
+                <div className="relative z-10 mt-12 flex flex-col items-center gap-4">
+                    <button
+                        onClick={() => {
+                            if (confirm('Reset room? All players will be disconnected and the ban list will be cleared.')) {
+                                if (hostSocket) {
+                                    hostSocket.emit('reset_room');
+                                    hostSocket.on('room_reset_complete', () => {
+                                        alert('Room reset complete!');
+                                    });
+                                }
+                            }
+                        }}
+                        className="px-6 py-3 bg-yellow-600/80 hover:bg-yellow-600 text-white rounded-lg font-bold transition-colors active:scale-95 border border-yellow-400"
+                    >
+                        🔄 Reset Room
+                    </button>
+
+                    <div className="text-white/20 text-xs font-mono text-center">
+                        <p>Server running at:</p>
+                        <p className="select-all">{baseUrl}</p>
+                    </div>
                 </div>
             </div>
         );
