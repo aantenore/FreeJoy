@@ -134,28 +134,11 @@ export function ProController({ roomId }: { roomId: string }) {
     }
 
     return (
-        <div className="w-screen h-dvh bg-slate-900 flex flex-col overflow-hidden select-none touch-none">
-            {/* === CONNECTION STATUS BAR === */}
-            <div className="h-8 bg-black/40 flex items-center justify-center px-4 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                    {[1, 2, 3, 4].map((p) => (
-                        <div
-                            key={p}
-                            className={clsx(
-                                "w-3 h-3 rounded-full transition-all",
-                                p === playerId
-                                    ? 'bg-[#39FF14] shadow-[0_0_8px_#39FF14]'
-                                    : 'bg-black/40'
-                            )}
-                        />
-                    ))}
-                </div>
-            </div>
-
+        <div className="fixed inset-0 bg-slate-900 flex flex-col overflow-hidden select-none touch-none">
             {/* === CONTROLLER LAYOUT === */}
             <div className="flex-1 flex flex-row">
                 {/* === LEFT SIDE === */}
-                <div className="flex-1 bg-gradient-to-br from-[#00C3E3] to-[#0088A3] p-2 flex flex-col justify-between relative border-r border-black/20">
+                <div className="flex-1 bg-gradient-to-br from-[#00C3E3] to-[#0088A3] p-2 flex flex-col justify-between relative">
                     {/* Top Row: L / ZL / Minus */}
                     <div className="flex justify-between items-start mb-1">
                         <div className="flex gap-2">
@@ -195,15 +178,26 @@ export function ProController({ roomId }: { roomId: string }) {
                     </div>
                 </div>
 
-                {/* === CENTER STRIP === */}
-                <div className="w-8 bg-black flex flex-col items-center justify-center gap-4 border-x border-white/10 z-10 shadow-xl">
-                    <div className="text-white/20 font-bold vertical-text text-[10px] tracking-widest rotate-180" style={{ writingMode: 'vertical-rl' }}>
-                        P{playerId}
+                {/* === CENTER STRIP REMOVED === */}
+
+                {/* === CENTER DIVIDER WITH LEDS === */}
+                <div className="w-8 bg-black/40 backdrop-blur-md border-l border-r border-white/10 flex flex-col items-center justify-center gap-2">
+                    {/* Vertical LED Strip */}
+                    <div className="flex flex-col gap-3 p-2 rounded-full bg-black/20 border border-white/5">
+                        {[1, 2, 3, 4].map(num => (
+                            <div
+                                key={num}
+                                className={`w-2 h-2 rounded-full transition-all duration-300 ${playerId === num
+                                    ? 'bg-[#00ff88] shadow-[0_0_8px_#00ff88] scale-125'
+                                    : 'bg-white/10'
+                                    }`}
+                            />
+                        ))}
                     </div>
                 </div>
 
                 {/* === RIGHT SIDE === */}
-                <div className="flex-1 bg-gradient-to-br from-[#FF4554] to-[#C41E3A] p-2 flex flex-col justify-between relative border-l border-black/20">
+                <div className="flex-1 bg-gradient-to-bl from-[#FF4D6D] to-[#D93F5C] p-2 flex flex-col justify-between relative">
                     {/* Top Row: R / ZR / Plus */}
                     <div className="flex justify-between items-start mb-1 flex-row-reverse">
                         <div className="flex gap-1">

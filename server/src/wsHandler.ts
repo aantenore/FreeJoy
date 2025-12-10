@@ -79,6 +79,10 @@ export class WSHandler {
                         if (kickedSocket) kickedSocket.disconnect(true);
                     }
                     this.broadcastPlayerList();
+                } else {
+                    // Player not found (already disconnected/kicked?)
+                    // Force a broadcast to sync the host's list so the phantom player disappears
+                    this.broadcastPlayerList();
                 }
             });
 
