@@ -127,7 +127,7 @@ MIT License - Free for personal and educational use.
 
 ## 🤖 Built with Antigravity
 
-This entire project was crafted with the assistance of **Antigravity** - Google DeepMind's agentic AI coding assistant. From the neon-themed UI to the native C# launcher (RIP), from the draggable analog sticks to the 4-player keyboard mappings, every line of code was a collaborative dance between human creativity and AI precision.
+This entire project was crafted with the assistance of **Antigravity** - Google DeepMind's agentic AI coding assistant. From the neon-themed UI to the virtual gamepad integration, from the draggable analog sticks to the seamless mobile experience, every line of code was a collaborative dance between human creativity and AI precision.
 
 > *"Any sufficiently advanced AI is indistinguishable from a very caffeinated developer at 3 AM."*  
 > — Arthur C. Clarke (probably)

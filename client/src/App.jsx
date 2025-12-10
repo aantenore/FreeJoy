@@ -104,7 +104,7 @@ function App() {
                             w-full sm:w-96"
                     >
                         <h3 className="text-5xl font-black italic bg-clip-text text-transparent bg-gradient-to-br from-amber-400 to-orange-600 mb-8 drop-shadow-sm">
-                            Join the Party
+                            Join
                         </h3>
                         <div className="bg-white p-4 rounded-2xl shadow-inner border-[6px] border-white/10">
                             <QRCode value={qrCodeUrl} size={220} level="M" fgColor="#0f172a" />
