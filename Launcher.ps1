@@ -62,6 +62,28 @@ while ($true) {
         Clear-Host
         switch ($selection) {
             0 { 
+                # Check Python Installation
+                Write-Host "Checking Python Installation..." -ForegroundColor Yellow
+                $pythonCheck = Get-Command python -ErrorAction SilentlyContinue
+                if ($pythonCheck) {
+                    $pythonVersion = & python --version 2>&1
+                    Write-Host "Found: $pythonVersion" -ForegroundColor Green
+                } else {
+                    Write-Host "Python not found!" -ForegroundColor Red
+                    Write-Host "Please install Python 3.7+ from https://www.python.org/downloads/" -ForegroundColor Yellow
+                    Write-Host "Make sure to check 'Add Python to PATH' during installation!" -ForegroundColor Yellow
+                    Pause
+                    continue
+                }
+
+                # Install vgamepad Python library
+                Write-Host "Installing vgamepad Python library..." -ForegroundColor Yellow
+                python -m pip install vgamepad
+                Write-Host "vgamepad installed!" -ForegroundColor Green
+                Write-Host ""
+                Write-Host "IMPORTANT: Accept the ViGEmBus driver installation if prompted!" -ForegroundColor Yellow
+                Write-Host ""
+
                 Write-Host "Installing Server Dependencies..." -ForegroundColor Yellow
                 Push-Location server
                 npm install
@@ -83,7 +105,10 @@ while ($true) {
                     Write-Host "Failed to add Firewall rules. (Are you Admin?)" -ForegroundColor Red
                 }
                 
-                Write-Host "Setup Complete!" -ForegroundColor Green
+                Write-Host ""
+                Write-Host "=============================" -ForegroundColor Green
+                Write-Host "  Setup Complete!" -ForegroundColor Green
+                Write-Host "=============================" -ForegroundColor Green
                 Pause
             }
             1 {

@@ -1,71 +1,71 @@
 # FreeJoy - Universal Wireless Gamepad
 
-FreeJoy is a full-stack controller solution that turns any database of mobile devices into low-latency gamepads for PC emulators. It features a Node.js/Socket.IO backend using `robotjs` for input emulation and a React frontend for the controller UI.
+FreeJoy is a full-stack controller solution that turns any mobile device into a low-latency gamepad for PC emulators. It features a Node.js/Socket.IO backend using `vgamepad` for virtual Xbox 360 controller emulation and a React frontend for the Pro Controller UI.
 
 ## ⚡ Main Features
 
-*   **Zero-Config Connection**: Scan a QR code to connect instantly.
+*   **Zero-Config Connection**: Scan a single QR code to connect instantly - player slots are auto-assigned.
     
     ![QR Screen](docs/qr_screen.png)
 
-*   **Controllers**: Left, Right playmode + Solo play mode with a full-featured Dual-Analog UI (simulating P1+P2 Joy-Cons simultaneously).
+*   **Pro Controller Layout**: All players use the same full-featured Pro Controller UI with dual analog sticks.
     
     ![Pro UI](docs/pro_ui.png)
-    ![Left UI](docs/left_ui.png)
-    ![Right UI](docs/right_ui.png)
 
-*   **Parallel Input Engine**: 12-process worker pool ensures zero input lag even with 4 active players.
+*   **Virtual Gamepad Emulation**: Creates true Xbox 360 virtual controllers via Python's `vgamepad` library.
 *   **Persistent Sessions**: Auto-reconnect logic restores player slots if the browser refreshes or device sleeps.
-*   **JSON-Driven Mappings**: Input configurations are defined in `server/configs/*.json` and enforced at runtime.
+*   **Auto-Assignment**: Players are automatically assigned slots 1-4 in order of connection.
 *   **Smart Layouts**: 
-    *   **Single Unit Mode**: Automatically detects Player 1/3 (Left Unit) and Player 2/4 (Right Unit).
     *   **Landscape Lock**: Enforces landscape orientation for maximum playability.
     *   **Safe Area Handling**: Optimized for notched phones and tablets.
-*   **Native Integration**: Uses low-level keyboard hooks via `@hurdlegroup/robotjs` for near-zero latency.
+*   **Native Integration**: Uses ViGEmBus driver for true virtual Xbox 360 controller emulation.
 
 ## 🛠️ Architecture & Integration
 
 FreeJoy is built on a modular, high-performance architecture.
 
-### 15-Process Parallel Backend
-To ensure absolute responsiveness, the server spawns dedicated worker processes for every input channel:
-*   **Main Server**: Handles Game State & WebSocket routing.
-*   **Input Workers**: 3 dedicated Node.js processes **per player** (Total 12 workers).
-    *   `ButtonWorker`: Handles digital button presses immediately.
-    *   `AxisXWorker`: Handles horizontal analog calculations.
-    *   `AxisYWorker`: Handles vertical analog calculations.
+### Virtual Gamepad Architecture
+FreeJoy creates true virtual Xbox 360 controllers for each player:
+*   **Main Server**: Handles WebSocket routing and room management.
+*   **Python VGamepad Service**: Single Python process that manages all virtual controllers.
+    *   Creates Xbox 360 gamepads on-demand via the ViGEmBus driver.
+    *   Handles button presses, analog stick input, and triggers.
+    *   Lazy-loads controllers only when players connect.
 
-**Lazy Loading**: Workers are only spawned when a player actually connects or interacts, keeping resource usage minimal when idle.
-
-### Current Integration (Keyboard Emulation)
-Currently, the system uses the **PC Emulator Plugin** (`RyujinxPlugin.ts`) which acts as a "Virtual Keyboard".
+### Current Integration (Virtual Gamepad)
+The system uses the **Ryujinx Virtual Gamepad Plugin** (`RyujinxPlugin.ts`):
 1.  **Mobile Client** sends input events via WebSocket (optimized 60Hz updates).
-2.  **Server** routes the event to the specific player's worker pool.
-3.  **Worker** executes the system call via `robotjs` in a separate thread.
-4.  **Target Application** depends on predefined key mappings (stored in `server/configs/`).
+2.  **Node.js Server** receives events and forwards them as JSON commands to Python.
+3.  **Python Process** translates commands to vgamepad API calls.
+4.  **ViGEmBus Driver** presents virtual Xbox 360 controllers to Windows.
+5.  **Ryujinx Emulator** sees native gamepad input (no keyboard mapping needed).
 
-## 🎮 Modes & Mappings
+## 🎮 Controller Mapping
 
-### 1. Multiplayer Mode (4-Player Split)
-Designed for titles like *Mario Kart* or *Mario Party*.
-*   **P1 & P3 (Left Joy-Cons)**: Mapped to disjoint left-keyboard clusters.
-*   **P2 & P4 (Right Joy-Cons)**: Mapped to disjoint right-keyboard clusters.
-*   **Conflict-Free**: All 56 inputs across 4 controllers are unique.
+### Pro Controller Layout (All Players)
+All players use the same Pro Controller layout with full functionality:
+*   **Action Buttons**: A, B, X, Y (position-mapped to Xbox layout)
+*   **D-Pad**: Full directional pad
+*   **Analog Sticks**: Left and Right sticks with L3/R3 buttons
+*   **Shoulder Buttons**: L, R, ZL (Left Trigger), ZR (Right Trigger)
+*   **System Buttons**: Plus (+), Minus (-)
 
-### 2. Pro Controller Mode (Solo)
-Designed for single-player adventures (e.g., *Zelda*, *Odyssey*).
-*   **Access**: Scan the 5th QR Code ("Pro Controller") or visit `/?type=pro`.
-*   **Dual Socket**: The client opens **two** connections simultaneously (P1 + P2).
-*   **Combined Input**: The left side of the screen drives the P1 socket, the right side drives the P2 socket.
-*   **Zero Config**: Works with the standard P1/P2 emulator configuration. No need to remap Ryujinx!
+### Button Mapping to Xbox 360
+*   Switch A → Xbox B (bottom button)
+*   Switch B → Xbox A (right button)
+*   Switch X → Xbox Y (top button)
+*   Switch Y → Xbox X (left button)
+*   ZL/ZR → Left/Right Triggers (analog)
+*   Plus/Minus → Start/Back
 
 ## 🔮 Roadmap & Future Development
 
-We have big plans to expand FreeJoy beyond a local Wi-Fi controller:
+Future plans to expand FreeJoy:
 
-*   **WAN / Internet Play**: A future "Base Internet" version will allow remote connections, enabling multiplayer gaming across different networks.
-*   **Dedicated Input Entities**: We plan to move beyond keyboard emulation to create dedicated virtual HID devices (Human Interface Devices) for each player. This will allow the OS to see 4 distinct controllers instead of one shared keyboard.
-*   **Multi-Plugin Support**: New plugins to support other emulators (e.g., Dolphin, Yuzu forks) and native PC games directly.
+*   **WAN / Internet Play**: Enable remote connections for multiplayer gaming across different networks.
+*   **DualShock 4 Support**: Add PlayStation controller emulation alongside Xbox 360.
+*   **Multi-Plugin Support**: Support for other emulators (e.g., Dolphin, RPCS3) and native PC games.
+*   **Customizable Layouts**: Allow users to rearrange buttons and adjust stick sensitivity.
 
 ## 🚀 Installation & Setup
 
@@ -74,48 +74,51 @@ The project includes a `Launcher.bat` (wrapper for `Launcher.ps1`) that handles 
 
 1.  Run `Launcher.bat` as Administrator.
 2.  Select **[1] Setup**:
+    *   Checks Python installation (requires Python 3.7+).
+    *   Installs `vgamepad` Python library and ViGEmBus driver.
     *   Installs `npm` dependencies for server and client.
-    *   Builds the React client to `server/public`.
-    *   **Firewall Rules**: Automatically allows inbound traffic on port 3000/3001.
+    *   Builds the React client.
+    *   **Firewall Rules**: Automatically allows inbound traffic on port 3000.
 3.  Select **[2] Start Server** to run the application.
 
 ### Method 2: Manual Setup
 If you prefer the command line:
 ```bash
-# 1. Install Server Deps
+# 1. Install Python Dependencies
+pip install vgamepad
+
+# 2. Install Server Deps
 cd server && npm install
-# 2. Install Client Deps & Build
+
+# 3. Install Client Deps & Build
 cd ../client && npm install && npm run build
-# 3. Start Server
+
+# 4. Start Server
 cd ../server && npm start
 ```
 
 ## 🎮 Emulator Configuration
 
-FreeJoy emulates a keyboard. You must map the keys in your emulator to match the server's configuration.
+FreeJoy creates virtual Xbox 360 controllers that appear as native gamepads to Ryujinx.
 
-1.  **Locate Profiles**: Go to `server/configs/`. You will see `profile_p1.json` through `p4.json`.
-2.  **Load in Emulator**:
-    *   Open Emulator Settings > Input.
-    *   Select **Player 1**.
-    *   Emulate via: **Handheld** or **Standard Controller**.
-    *   Map the keys as defined in `profile_p1.json`.
-    *   *Repeat for Players 2-4.*
+1.  **Open Ryujinx Settings** → Input Configuration
+2.  **Select Input Device**: Choose "Xbox 360 Controller for Windows" (you'll see one for each connected player)
+3.  **Configure Controls**: Map the buttons using Ryujinx's automatic detection or manual mapping
+4.  **Repeat for each player** (Player 1-4)
 
-**Default Mapping Strategy:**
-To support 4 players on one keyboard without conflicts, we use specific key clusters:
-*   **P1 (Left Unit)**: WASD area + Q/E (Shoulders)
-*   **P2 (Right Unit)**: TFGH area + Y/V (Shoulders) [Numpad mapping also supported]
-*   **P3/P4**: Uses remaining keyboard zones (IJKL, Numpad).
+**Note**: Each mobile device that connects creates its own virtual Xbox 360 controller in Windows. You can verify this in:
+- Windows Device Manager → Human Interface Devices → "Xbox 360 Controller for Windows"
+- Ryujinx will automatically detect these controllers when they connect.
 
 ## 📱 Mobile Usage
 
 1.  Open the host page (`http://localhost:3000`) on your PC.
-2.  Scan the QR code for your specific slot (P1, P2, P3, P4).
-3.  **iOS Users**: Tap "Share" -> "Add to Home Screen" to launch as a PWA.
+2.  Scan the single QR code - you'll be automatically assigned to the first available player slot (1-4).
+3.  **iOS Users**: Tap "Share" → "Add to Home Screen" to launch as a PWA.
 4.  **Troubleshooting**:
-    *   **"Player Joined (Auto-Assign)"**: This connects you to your last known slot. If you want a different slot, clear browser data.
+    *   **Auto-Assignment**: Players are assigned slots 1-4 in order of connection. Reconnecting with the same device restores your previous slot.
     *   **Vibration**: Requires a user interaction (tap) to enable on iOS first.
+    *   **Controller Not Detected**: Make sure ViGEmBus driver is installed (happens automatically during setup).
 
 ## 📄 License
 MIT License - Free for personal and educational use.

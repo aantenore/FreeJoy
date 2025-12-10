@@ -13,13 +13,13 @@ export class WSHandler {
         this.io.on('connection', (socket: Socket) => {
             console.log(`[WS] New Connection: ${socket.id} from ${socket.handshake.address}`);
 
-            socket.on('join', (data: { roomId: string, clientId?: string, desiredSlot?: number }) => {
+            socket.on('join', (data: { roomId: string, clientId?: string }) => {
                 // Use client IP as persistent identifier (works across Safari/PWA on iOS)
                 // UPDATE: Prefer UUID if sent
-                const { roomId, clientId, desiredSlot } = data;
+                const { roomId, clientId } = data;
                 const finalClientId = clientId || socket.handshake.address;
 
-                console.log(`[WS] Join attempt from ${finalClientId} (${socket.id}) for room ${roomId} (SlotReq: ${desiredSlot})`);
+                console.log(`[WS] Join attempt from ${finalClientId} (${socket.id}) for room ${roomId}`);
 
                 // Validate Room ID (Ephemeral Check)
                 if (!this.room.validateRoom(data.roomId)) {
@@ -34,12 +34,10 @@ export class WSHandler {
                     return;
                 }
 
-                const player = this.room.join(finalClientId, socket.id, desiredSlot);
+                const player = this.room.join(finalClientId, socket.id);
                 if (!player) {
                     if (this.room.isFull()) {
                         socket.emit('error', { code: 'ROOM_FULL', message: 'Room is full.' });
-                    } else if (desiredSlot) {
-                        socket.emit('error', { code: 'SLOT_TAKEN', message: `Player ${desiredSlot} is already taken.` });
                     } else {
                         socket.emit('error', { code: 'ROOM_FULL', message: 'No free slots.' });
                     }
