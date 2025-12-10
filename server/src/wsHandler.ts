@@ -13,13 +13,15 @@ export class WSHandler {
         this.io.on('connection', (socket: Socket) => {
             console.log(`[WS] New Connection: ${socket.id} from ${socket.handshake.address}`);
 
-            socket.on('join', (data: { roomId: string, clientId?: string }) => {
+            socket.on('join', (data: { roomId: string, clientId?: string, deviceName?: string }) => {
                 // Use client IP as persistent identifier (works across Safari/PWA on iOS)
                 // UPDATE: Prefer UUID if sent
-                const { roomId, clientId } = data;
+                const { roomId, clientId, deviceName } = data;
                 const finalClientId = clientId || socket.handshake.address;
+                const finalDeviceName = deviceName || socket.handshake.headers['user-agent'] || 'Unknown Device';
 
                 console.log(`[WS] Join attempt from ${finalClientId} (${socket.id}) for room ${roomId}`);
+                console.log(`[WS] Device Name: "${finalDeviceName}"`);
 
                 // Validate Room ID (Ephemeral Check)
                 if (!this.room.validateRoom(data.roomId)) {
@@ -34,7 +36,7 @@ export class WSHandler {
                     return;
                 }
 
-                const player = this.room.join(finalClientId, socket.id);
+                const player = this.room.join(finalClientId, socket.id, finalDeviceName);
                 if (!player) {
                     if (this.room.isFull()) {
                         socket.emit('error', { code: 'ROOM_FULL', message: 'Room is full.' });
@@ -46,12 +48,56 @@ export class WSHandler {
 
                 // Success
                 const profile = this.plugin.getProfile ? this.plugin.getProfile(player.id) : null;
+
+                // Initialize virtual controller immediately
+                if (this.plugin.initPlayer) {
+                    this.plugin.initPlayer(player.id);
+                }
+
                 socket.emit('joined', {
                     playerId: player.id,
                     roomId: this.room.roomId,
                     profile: profile
                 });
                 this.broadcastState();
+                this.broadcastPlayerList(); // Notify all about new player
+            });
+
+            // Get connected players list
+            socket.on('get_players', () => {
+                socket.emit('players_list', this.room.getPlayersList());
+            });
+
+            // Kick a player
+            socket.on('kick_player', (data: { playerId: number }) => {
+                const kicked = this.room.kickPlayer(data.playerId);
+                if (kicked) {
+                    // Only try to disconnect if player is still connected
+                    if (kicked.connected && kicked.socketId) {
+                        this.io.to(kicked.socketId).emit('kicked', { reason: 'Host kicked you' });
+                        const kickedSocket = this.io.sockets.sockets.get(kicked.socketId);
+                        if (kickedSocket) kickedSocket.disconnect(true);
+                    }
+                    this.broadcastPlayerList();
+                }
+            });
+
+            // Reset room (disconnect all, clear banned list)
+            socket.on('reset_room', () => {
+                console.log('[WS] Room reset requested');
+                const allPlayers = this.room.reset();
+
+                // Disconnect all connected players
+                allPlayers.forEach(player => {
+                    if (player.connected && player.socketId) {
+                        this.io.to(player.socketId).emit('kicked', { reason: 'Room was reset by host' });
+                        const playerSocket = this.io.sockets.sockets.get(player.socketId);
+                        if (playerSocket) playerSocket.disconnect(true);
+                    }
+                });
+
+                this.broadcastPlayerList();
+                socket.emit('room_reset_complete');
             });
 
             socket.on('input', (data: { btn: string; state: 0 | 1 }) => {
@@ -81,6 +127,7 @@ export class WSHandler {
             socket.on('disconnect', () => {
                 this.room.disconnect(socket.id);
                 this.broadcastState();
+                this.broadcastPlayerList(); // Update player list on disconnect
             });
         });
 
@@ -93,5 +140,9 @@ export class WSHandler {
 
     private broadcastState() {
         this.io.emit('room_state', this.room.getState());
+    }
+
+    private broadcastPlayerList() {
+        this.io.emit('players_list', this.room.getPlayersList());
     }
 }

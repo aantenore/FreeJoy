@@ -8,7 +8,7 @@ FreeJoy is a full-stack controller solution that turns any mobile device into a 
     
     ![QR Screen](docs/qr_screen.png)
 
-*   **Pro Controller Layout**: All players use the same full-featured Pro Controller UI with dual analog sticks.
+*   **Pro Controller Layout**: All players use the same full-featured Pro Controller UI with dual analog sticks, split Joy-Con style layout (cyan left, red right), LED player indicators, and neon-glowing controls.
     
     ![Pro UI](docs/pro_ui.png)
 

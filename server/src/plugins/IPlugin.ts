@@ -15,6 +15,9 @@ export interface IPlugin {
     /** Send analog stick input (Left/Right stick) */
     sendAnalogInput(playerIndex: number, stick: 'left' | 'right', x: number, y: number): void;
 
+    /** Optional: Initialize player controller immediately on join */
+    initPlayer?(playerIndex: number): void;
+
     /** Get player profile configuration */
     getProfile?(playerIndex: number): any;
 }
