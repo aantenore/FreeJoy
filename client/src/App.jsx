@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from "react-qr-code";
-import { useGamepad } from './hooks/useGamepad';
-import { Controller } from './components/Controller';
 import { ProController } from './components/ProController';
 import { InstallBanner } from './components/InstallBanner';
 import './App.css';
@@ -13,17 +11,10 @@ function App() {
     const [mode, setMode] = useState('loading'); // 'loading' | 'host' | 'gamepad'
     const [activeRoom, setActiveRoom] = useState(null);
     const [hostRoom, setHostRoom] = useState(null);
-    const [isPro, setIsPro] = useState(false);
 
     // Initial Routing Logic
     useEffect(() => {
         const path = window.location.pathname;
-        const searchParams = new URLSearchParams(window.location.search);
-
-        // Check for Pro Mode
-        if (searchParams.get('type') === 'pro') {
-            setIsPro(true);
-        }
 
         // ROUTE: /pad -> Gamepad Mode (Stateless)
         if (path === '/pad') {
@@ -79,44 +70,14 @@ function App() {
     if (mode === 'host') {
         if (!hostRoom) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white relative overflow-hidden"><div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 animate-gradient-xy"></div><div className="relative z-10 flex flex-col items-center animate-pulse"><p className="text-xl font-bold">Initializing Server...</p></div></div>;
 
-        const serverIp = hostRoom.serverIp || window.location.hostname;
+        // Use server-detected IP from API response
+        const serverIp = hostRoom.serverIp;
         const port = window.location.port ? `:${window.location.port}` : '';
         const protocol = window.location.protocol;
         const baseUrl = `${protocol}//${serverIp}${port}/pad`;
 
-        // Generate URLs for each slot dynamically based on maxPlayers (default to 4 if missing)
-        const maxPlayers = hostRoom.maxPlayers || 4;
-
-        // Controller Unit Colors
-        const playerConfigs = [
-            { id: 1, color: 'from-cyan-400 to-blue-600', border: 'border-cyan-400', bg: 'bg-cyan-950/40', glow: 'shadow-cyan-500/20' }, // Neon Blue
-            { id: 2, color: 'from-red-500 to-rose-600', border: 'border-red-500', bg: 'bg-rose-950/40', glow: 'shadow-red-500/20' },     // Neon Red
-            { id: 3, color: 'from-green-400 to-emerald-600', border: 'border-green-400', bg: 'bg-emerald-950/40', glow: 'shadow-green-500/20' }, // Neon Green
-            { id: 4, color: 'from-fuchsia-500 to-purple-600', border: 'border-fuchsia-500', bg: 'bg-fuchsia-950/40', glow: 'shadow-fuchsia-500/20' } // Neon Purple
-        ];
-
-        // Initialize with Pro Controller (Requested by User)
-        const playerUrls = [{
-            id: 99,
-            url: `${baseUrl}?type=pro`,
-            color: 'from-amber-400 to-orange-600',
-            border: 'border-amber-400',
-            bg: 'bg-amber-950/40',
-            glow: 'shadow-amber-500/20',
-            label: 'Pro Controller'
-        }];
-
-        // Add Standard Players (1-4)
-        for (let i = 0; i < maxPlayers; i++) {
-            const id = i + 1;
-            const config = playerConfigs[i % 4];
-            playerUrls.push({
-                id,
-                url: `${baseUrl}?slot=${id}`,
-                label: `Player ${id}`,
-                ...config
-            });
-        }
+        // Single QR code for Pro Controller with auto-assignment
+        const qrCodeUrl = `${baseUrl}?type=pro`;
 
         return (
             <div className="h-screen w-full flex flex-col items-center relative overflow-y-auto bg-slate-900 p-4 pb-20 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
@@ -130,33 +91,31 @@ function App() {
                     <p className="text-xs font-bold tracking-[0.6em] text-white/40 uppercase">Scan to Connect</p>
                 </div>
 
-                {/* QR ROW (Horizontal) */}
-                <div className="relative z-10 flex flex-wrap justify-center gap-6 w-full max-w-[90rem]">
-                    {playerUrls.map(p => (
-                        <a
-                            key={p.id}
-                            href={p.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`
-                                group relative backdrop-blur-xl ${p.bg} border ${p.border} 
-                                p-6 rounded-[2rem] flex flex-col items-center 
-                                ${p.glow} hover:shadow-[0_0_40px_rgba(255,255,255,0.15)]
-                                transition-all duration-300 hover:-translate-y-2 cursor-pointer
-                                w-full sm:w-64
-                            `}
-                        >
-                            <h3 className={`text-4xl font-black italic bg-clip-text text-transparent bg-gradient-to-br ${p.color} mb-6 drop-shadow-sm`}>
-                                {p.label}
-                            </h3>
-                            <div className="bg-white p-3 rounded-2xl shadow-inner border-[6px] border-white/10">
-                                <QRCode value={p.url} size={140} level="M" fgColor="#0f172a" />
-                            </div>
-                            <div className={`mt-5 px-5 py-1.5 rounded-full border ${p.border} bg-black/40 text-[10px] font-bold text-white uppercase tracking-widest group-hover:bg-white text-white group-hover:text-black transition-colors`}>
-                                Join {p.label}
-                            </div>
-                        </a>
-                    ))}
+                {/* Single QR Code */}
+                <div className="relative z-10 flex justify-center w-full">
+                    <a
+                        href={qrCodeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative backdrop-blur-xl bg-amber-950/40 border border-amber-400 
+                            p-8 rounded-[2rem] flex flex-col items-center 
+                            shadow-amber-500/20 hover:shadow-[0_0_40px_rgba(255,255,255,0.15)]
+                            transition-all duration-300 hover:-translate-y-2 cursor-pointer
+                            w-full sm:w-96"
+                    >
+                        <h3 className="text-5xl font-black italic bg-clip-text text-transparent bg-gradient-to-br from-amber-400 to-orange-600 mb-8 drop-shadow-sm">
+                            Join the Party
+                        </h3>
+                        <div className="bg-white p-4 rounded-2xl shadow-inner border-[6px] border-white/10">
+                            <QRCode value={qrCodeUrl} size={220} level="M" fgColor="#0f172a" />
+                        </div>
+                        <div className="mt-6 px-6 py-2 rounded-full border border-amber-400 bg-black/40 text-xs font-bold text-white uppercase tracking-widest group-hover:bg-white group-hover:text-black transition-colors">
+                            Scan to Join (Auto-Assigned)
+                        </div>
+                        <p className="mt-4 text-white/50 text-sm text-center">
+                            Players will be assigned slots 1-4 automatically
+                        </p>
+                    </a>
                 </div>
 
 
@@ -170,121 +129,8 @@ function App() {
     }
 
     // GAMEPAD MODE
-    // If Pro Mode is detected
-    if (isPro) {
-        return <ProController roomId={activeRoom} />;
-    }
-
-    // Standard Gamepad Mode
-    return <GamepadView roomId={activeRoom} />;
-}
-
-function GamepadView({ roomId }) {
-    const { status, player, errorMsg, sendInput, sendAnalog, activeRoomId } = useGamepad(roomId);
-
-    // Derive Flattened Props
-    const playerId = player?.playerId;
-    const connected = status === 'connected';
-    const error = errorMsg;
-
-    const [showSplash, setShowSplash] = useState(true);
-    const [isLongConnection, setIsLongConnection] = useState(false);
-
-    useEffect(() => {
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(err => console.log('orientation err', err));
-        }
-    }, []);
-
-    useEffect(() => {
-        const timer = setTimeout(() => setShowSplash(false), 2000);
-        return () => clearTimeout(timer);
-    }, []);
-
-    useEffect(() => {
-        let timeout;
-        if (status === 'connecting' && !showSplash) {
-            timeout = setTimeout(() => setIsLongConnection(true), 8000);
-        } else {
-            setIsLongConnection(false);
-        }
-        return () => clearTimeout(timeout);
-    }, [status, showSplash]);
-
-    // Wake Lock
-    useEffect(() => {
-        let wakeLock = null;
-        const requestWakeLock = async () => {
-            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { }
-        };
-        requestWakeLock();
-        return () => { if (wakeLock) wakeLock.release(); };
-    }, []);
-
-    if (showSplash || (status === 'connecting')) {
-        return (
-            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900"></div>
-                {!isLongConnection ? (
-                    <div className="relative z-10 flex flex-col items-center animate-pulse">
-                        <div className="flex gap-6 mb-8">
-                            <div className="w-16 h-32 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl shadow-2xl transform -rotate-12 animate-bounce"></div>
-                            <div className="w-16 h-32 bg-gradient-to-br from-red-400 to-pink-600 rounded-2xl shadow-2xl transform rotate-12 animate-bounce animation-delay-300"></div>
-                        </div>
-                        <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] to-[#FF4D6D]">FREEJOY</p>
-                        <p className="text-lg font-medium text-slate-300 mt-2">Connecting to {activeRoomId || roomId}...</p>
-                    </div>
-                ) : (
-                    <div className="relative z-10 flex flex-col items-center text-center p-6 backdrop-blur-md bg-black/30 rounded-xl">
-                        <h2 className="text-xl mb-4 text-orange-400 opacity-90">Connection Timeout</h2>
-                        <p className="mb-4 text-sm opacity-70">Room: {activeRoomId || roomId}</p>
-                        <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 rounded-lg font-bold shadow-lg">Retry</button>
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 text-center">
-                <div className="text-6xl mb-6">⚠️</div>
-                <h2 className="text-2xl font-bold mb-2">Connection Error</h2>
-                <p className="text-white/60 mb-6 max-w-xs">{error}</p>
-                <button onClick={() => window.location.reload()} className="mt-6 px-6 py-3 bg-blue-600 rounded-lg">Retry Connection</button>
-            </div>
-        );
-    }
-
-    if (!playerId) {
-        return (
-            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-4 text-center">
-                <div className="loading-spinner mb-4 border-indigo-500 border-t-transparent"></div>
-                <p className="animate-pulse text-xl font-bold mb-4">Waiting for slot...</p>
-                <p className="text-sm opacity-50">Room: {activeRoomId || roomId}</p>
-
-                <button
-                    onClick={() => {
-                        window.location.reload();
-                    }}
-                    className="mt-6 px-4 py-2 bg-red-800/50 hover:bg-red-800 rounded text-sm"
-                >
-                    Retry
-                </button>
-            </div>
-        );
-    }
-
-    return (
-        <div className="app bg-slate-950 min-h-screen w-full overflow-y-auto overscroll-none touch-none">
-            <Controller playerId={playerId} playerProfile={player?.profile} onInput={sendInput} onAnalog={sendAnalog} />
-            {/* Connection status hidden for cleaner UI - status visible in center LEDs */}
-            <div className="hidden">
-                <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'} shadow-[0_0_10px_currentColor]`}></div>
-            </div>
-            <InstallBanner />
-        </div>
-    );
+    // All connections now use Pro Controller layout
+    return <ProController roomId={activeRoom} />;
 }
 
 export default App;
