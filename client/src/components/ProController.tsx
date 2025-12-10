@@ -67,10 +67,15 @@ export function ProController({ roomId }: { roomId: string }) {
     // Loading/Error states
     if (status === 'connecting' || !playerId) {
         return (
-            <div className="w-screen h-dvh bg-slate-900 flex items-center justify-center text-white">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-xl font-bold">Connecting to Room...</p>
+            <div className="w-screen h-dvh bg-slate-900 flex items-center justify-center text-white relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900"></div>
+                <div className="relative z-10 flex flex-col items-center animate-pulse">
+                    <div className="flex gap-6 mb-8">
+                        <div className="w-16 h-32 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl shadow-2xl transform -rotate-12 animate-bounce"></div>
+                        <div className="w-16 h-32 bg-gradient-to-br from-red-400 to-pink-600 rounded-2xl shadow-2xl transform rotate-12 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                    <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] to-[#FF4D6D]">FREEJOY</p>
+                    <p className="text-lg font-medium text-slate-300 mt-2">Connecting to Room...</p>
                 </div>
             </div>
         );
@@ -80,6 +85,7 @@ export function ProController({ roomId }: { roomId: string }) {
         return (
             <div className="w-screen h-dvh bg-slate-900 flex items-center justify-center text-white">
                 <div className="text-center">
+                    <div className="text-6xl mb-6">⚠️</div>
                     <p className="text-2xl font-bold text-red-400 mb-4">Connection Error</p>
                     <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 rounded-lg font-bold">
                         Retry
@@ -92,15 +98,20 @@ export function ProController({ roomId }: { roomId: string }) {
     return (
         <div className="w-screen h-dvh bg-slate-900 flex flex-col overflow-hidden select-none touch-none">
             {/* === CONNECTION STATUS BAR === */}
-            <div className="h-8 bg-black/40 flex items-center justify-between px-4 border-b border-white/10">
+            <div className="h-8 bg-black/40 flex items-center justify-center px-4 border-b border-white/10">
                 <div className="flex items-center gap-2">
-                    <div className={clsx(
-                        "w-3 h-3 rounded-full shadow-lg",
-                        status === 'connected' ? "bg-green-400" : "bg-red-400 animate-pulse"
-                    )} />
-                    <span className="text-white/60 text-sm font-mono">Player {playerId}</span>
+                    {[1, 2, 3, 4].map((p) => (
+                        <div
+                            key={p}
+                            className={clsx(
+                                "w-3 h-3 rounded-full transition-all",
+                                p === playerId
+                                    ? 'bg-[#39FF14] shadow-[0_0_8px_#39FF14]'
+                                    : 'bg-black/40'
+                            )}
+                        />
+                    ))}
                 </div>
-                <div className="text-white/40 text-xs font-mono">Join the Party</div>
             </div>
 
             {/* === CONTROLLER LAYOUT === */}
@@ -110,8 +121,8 @@ export function ProController({ roomId }: { roomId: string }) {
                     {/* Top Row: L / ZL / Minus */}
                     <div className="flex justify-between items-start mb-1">
                         <div className="flex gap-2">
-                            <ShoulderBtn label="ZL" onInput={sendInput} />
                             <ShoulderBtn label="L" onInput={sendInput} />
+                            <ShoulderBtn label="ZL" onInput={sendInput} />
                         </div>
                         <RoundBtn label="Minus" icon="−" onInput={sendInput} />
                     </div>
@@ -119,16 +130,20 @@ export function ProController({ roomId }: { roomId: string }) {
                     {/* Main: Stick (Top) + DPad (Bottom) */}
                     <div className="flex-1 flex flex-col items-center justify-evenly w-full">
                         {/* Left Stick */}
-                        <div className="relative p-2 bg-black/10 rounded-full border border-white/5">
-                            <Joystick
-                                size={80}
-                                stickSize={50}
-                                baseColor="rgba(0,0,0,0.3)"
-                                stickColor="#222"
-                                throttle={30}
-                                move={(e: any) => sendAnalog('left', (e.x || 0) / 40, -(e.y || 0) / 40)}
-                                stop={() => sendAnalog('left', 0, 0)}
-                            />
+                        <div className="relative p-3">
+                            <div className="relative bg-gradient-to-br from-gray-900 to-black rounded-full p-2 shadow-[inset_0_-4px_8px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.1),0_0_12px_rgba(0,195,227,0.3)] border-4 border-black/40">
+                                {/* Neon center dot */}
+                                <div className="absolute w-3 h-3 rounded-full z-30 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none bg-[#00C3E3]" style={{ boxShadow: '0 0 12px #00C3E3' }} />
+                                <Joystick
+                                    size={80}
+                                    stickSize={50}
+                                    baseColor="rgba(0,0,0,0)"
+                                    stickColor="#1a1a1a"
+                                    throttle={30}
+                                    move={(e: any) => sendAnalog('left', (e.x || 0) / 20, -(e.y || 0) / 20)}
+                                    stop={() => sendAnalog('left', 0, 0)}
+                                />
+                            </div>
                             {/* L3 tucked in corner */}
                             <div className="absolute -top-4 -right-4 transform scale-75">
                                 <RoundBtn label="L3" icon="L3" onInput={sendInput} />
@@ -154,8 +169,8 @@ export function ProController({ roomId }: { roomId: string }) {
                     {/* Top Row: R / ZR / Plus */}
                     <div className="flex justify-between items-start mb-1 flex-row-reverse">
                         <div className="flex gap-1">
-                            <ShoulderBtn label="R" onInput={sendInput} />
                             <ShoulderBtn label="ZR" onInput={sendInput} />
+                            <ShoulderBtn label="R" onInput={sendInput} />
                         </div>
                         <RoundBtn label="Plus" icon="+" onInput={sendInput} />
                     </div>
@@ -168,16 +183,20 @@ export function ProController({ roomId }: { roomId: string }) {
                         </div>
 
                         {/* Right Stick */}
-                        <div className="relative p-2 bg-black/10 rounded-full border border-white/5">
-                            <Joystick
-                                size={80}
-                                stickSize={50}
-                                baseColor="rgba(0,0,0,0.3)"
-                                stickColor="#222"
-                                throttle={30}
-                                move={(e: any) => sendAnalog('right', (e.x || 0) / 40, -(e.y || 0) / 40)}
-                                stop={() => sendAnalog('right', 0, 0)}
-                            />
+                        <div className="relative p-3">
+                            <div className="relative bg-gradient-to-br from-gray-900 to-black rounded-full p-2 shadow-[inset_0_-4px_8px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.1),0_0_12px_rgba(255,69,84,0.3)] border-4 border-black/40">
+                                {/* Neon center dot */}
+                                <div className="absolute w-3 h-3 rounded-full z-30 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none bg-[#FF4554]" style={{ boxShadow: '0 0 12px #FF4554' }} />
+                                <Joystick
+                                    size={80}
+                                    stickSize={50}
+                                    baseColor="rgba(0,0,0,0)"
+                                    stickColor="#1a1a1a"
+                                    throttle={30}
+                                    move={(e: any) => sendAnalog('right', (e.x || 0) / 20, -(e.y || 0) / 20)}
+                                    stop={() => sendAnalog('right', 0, 0)}
+                                />
+                            </div>
                             {/* R3 tucked in corner */}
                             <div className="absolute -top-4 -left-4 transform scale-75">
                                 <RoundBtn label="R3" icon="R3" onInput={sendInput} />
@@ -195,7 +214,7 @@ export function ProController({ roomId }: { roomId: string }) {
 function ShoulderBtn({ label, onInput }: { label: string; onInput: (btn: string, state: 0 | 1) => void }) {
     return (
         <button
-            className="w-16 h-10 rounded-lg bg-black/40 border-2 border-white/10 text-white font-bold shadow-md active:bg-white/20 active:scale-95 transition-all"
+            className="w-16 h-10 rounded-lg bg-gradient-to-b from-gray-800 to-gray-900 border-2 border-gray-700 text-gray-200 font-bold shadow-[0_0_8px_rgba(160,160,160,0.3),0_4px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)] active:shadow-[0_0_16px_rgba(180,180,180,0.5),inset_0_3px_8px_rgba(0,0,0,0.6)] active:translate-y-[2px] active:scale-95 transition-all duration-150"
             onPointerDown={() => onInput(label, 1)}
             onPointerUp={() => onInput(label, 0)}
             onPointerLeave={() => onInput(label, 0)}
@@ -208,7 +227,7 @@ function ShoulderBtn({ label, onInput }: { label: string; onInput: (btn: string,
 function RoundBtn({ label, icon, onInput }: { label: string; icon: string; onInput: (btn: string, state: 0 | 1) => void }) {
     return (
         <button
-            className="w-10 h-10 rounded-full bg-black/60 border border-white/20 text-white font-bold shadow-lg flex items-center justify-center hover:bg-black/80 active:scale-95"
+            className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-600 via-gray-700 to-gray-800 border-2 border-gray-400/60 text-white font-bold shadow-[0_0_16px_rgba(200,200,200,0.6),0_0_28px_rgba(200,200,200,0.3),0_4px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_6px_rgba(0,0,0,0.4)] flex items-center justify-center active:shadow-[0_0_24px_rgba(255,255,255,0.9),0_0_40px_rgba(255,255,255,0.5),inset_0_3px_8px_rgba(0,0,0,0.6)] active:translate-y-[2px] active:scale-95 transition-all duration-150"
             onPointerDown={() => onInput(label, 1)}
             onPointerUp={() => onInput(label, 0)}
             onPointerLeave={() => onInput(label, 0)}
@@ -220,12 +239,12 @@ function RoundBtn({ label, icon, onInput }: { label: string; icon: string; onInp
 
 function DPadCluster({ onInput }: { onInput: (btn: string, state: 0 | 1) => void }) {
     return (
-        <div className="grid grid-cols-3 gap-1 w-32 h-32 rotate-0">
+        <div className="grid grid-cols-3 gap-1 w-32 h-32 p-2 bg-gradient-to-br from-black/40 via-black/30 to-black/25 rounded-2xl shadow-[inset_0_0_12px_rgba(0,0,0,0.5),inset_0_-4px_8px_rgba(0,0,0,0.4),0_0_8px_rgba(255,255,255,0.1)] border border-white/10">
             <div />
             <DPadBtn icon="▲" label="DPadUp" onInput={onInput} />
             <div />
             <DPadBtn icon="◀" label="DPadLeft" onInput={onInput} />
-            <div className="bg-black/20 rounded" />
+            <div className="bg-gradient-radial from-black/60 to-black/40 rounded-full shadow-[inset_0_0_8px_rgba(0,0,0,0.6)]" />
             <DPadBtn icon="▶" label="DPadRight" onInput={onInput} />
             <div />
             <DPadBtn icon="▼" label="DPadDown" onInput={onInput} />
@@ -237,7 +256,7 @@ function DPadCluster({ onInput }: { onInput: (btn: string, state: 0 | 1) => void
 function DPadBtn({ icon, label, onInput }: { icon: string; label: string; onInput: (btn: string, state: 0 | 1) => void }) {
     return (
         <button
-            className="w-full h-full bg-black/40 rounded flex items-center justify-center text-white active:bg-white/30 active:scale-90"
+            className="w-full h-full bg-gradient-to-br from-gray-600 via-gray-700 to-gray-800 rounded shadow-[0_0_10px_rgba(180,180,180,0.4),0_0_20px_rgba(180,180,180,0.2),0_3px_6px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.4)] flex items-center justify-center text-white text-lg font-bold active:shadow-[0_0_18px_rgba(220,220,220,0.8),0_0_30px_rgba(220,220,220,0.4),inset_0_3px_6px_rgba(0,0,0,0.6)] active:bg-gradient-to-br active:from-gray-700 active:to-gray-900 active:scale-95 transition-all duration-150"
             onPointerDown={() => onInput(label, 1)}
             onPointerUp={() => onInput(label, 0)}
             onPointerLeave={() => onInput(label, 0)}
@@ -251,28 +270,53 @@ function ABXYCluster({ onInput }: { onInput: (btn: string, state: 0 | 1) => void
     return (
         <div className="grid grid-cols-3 gap-2 w-32 h-32">
             <div />
-            <ABXYBtn label="X" color="text-yellow-400" onInput={onInput} />
+            <ABXYBtn label="X" color="text-yellow-300" onInput={onInput} />
             <div />
-            <ABXYBtn label="Y" color="text-cyan-400" onInput={onInput} />
+            <ABXYBtn label="Y" color="text-cyan-300" onInput={onInput} />
             <div />
-            <ABXYBtn label="A" color="text-green-400" onInput={onInput} />
+            <ABXYBtn label="A" color="text-green-300" onInput={onInput} />
             <div />
-            <ABXYBtn label="B" color="text-red-400" onInput={onInput} />
+            <ABXYBtn label="B" color="text-red-300" onInput={onInput} />
             <div />
         </div>
     );
 }
 
 function ABXYBtn({ label, color, onInput }: { label: string; color: string; onInput: (btn: string, state: 0 | 1) => void }) {
+    const glowColor = label === 'A' ? 'rgba(34,197,94,0.6)' :
+        label === 'B' ? 'rgba(239,68,68,0.6)' :
+            label === 'X' ? 'rgba(234,179,8,0.6)' :
+                'rgba(6,182,212,0.6)';
+
+    const activeGlow = label === 'A' ? 'rgba(34,197,94,0.9)' :
+        label === 'B' ? 'rgba(239,68,68,0.9)' :
+            label === 'X' ? 'rgba(234,179,8,0.9)' :
+                'rgba(6,182,212,0.9)';
+
     return (
         <button
             className={clsx(
-                "w-full h-full rounded-full bg-black/40 border-2 border-white/10 flex items-center justify-center text-xl font-black shadow-lg active:scale-90 active:bg-white/20 transition-all",
+                "w-full h-full rounded-full bg-gradient-to-b from-gray-800 to-gray-900 border-3 border-white/30 flex items-center justify-center text-2xl font-black transition-all",
                 color
             )}
-            onPointerDown={() => onInput(label, 1)}
-            onPointerUp={() => onInput(label, 0)}
-            onPointerLeave={() => onInput(label, 0)}
+            style={{
+                boxShadow: `0 0 12px ${glowColor}, 0 4px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.2)`
+            }}
+            onPointerDown={(e) => {
+                (e.target as HTMLButtonElement).style.boxShadow = `0 0 24px ${activeGlow}, inset 0 2px 6px rgba(0,0,0,0.5)`;
+                (e.target as HTMLButtonElement).style.transform = 'translateY(2px)';
+                onInput(label, 1);
+            }}
+            onPointerUp={(e) => {
+                (e.target as HTMLButtonElement).style.boxShadow = `0 0 12px ${glowColor}, 0 4px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.2)`;
+                (e.target as HTMLButtonElement).style.transform = 'translateY(0)';
+                onInput(label, 0);
+            }}
+            onPointerLeave={(e) => {
+                (e.target as HTMLButtonElement).style.boxShadow = `0 0 12px ${glowColor}, 0 4px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.2)`;
+                (e.target as HTMLButtonElement).style.transform = 'translateY(0)';
+                onInput(label, 0);
+            }}
         >
             {label}
         </button>
