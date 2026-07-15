@@ -1,4 +1,5 @@
 import express from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import qrcode from 'qrcode';
@@ -41,13 +42,19 @@ async function bootstrap() {
     const CLIENT_PATH = path.join(__dirname, '../../client/dist_build');
     const CLIENT_INDEX_PATH = path.join(CLIENT_PATH, 'index.html');
     const clientIndexAvailable = fs.existsSync(CLIENT_INDEX_PATH);
+    const clientFallbackLimiter = rateLimit({
+        windowMs: 60_000,
+        limit: 120,
+        standardHeaders: 'draft-8',
+        legacyHeaders: false
+    });
     app.use(express.static(CLIENT_PATH));
 
     app.get('/api/room', (req, res) => {
         res.json(roomManager.getState());
     });
 
-    app.get('/{*splat}', (req, res) => {
+    app.get('/{*splat}', clientFallbackLimiter, (req, res) => {
         if (req.accepts('html')) {
             if (clientIndexAvailable) {
                 res.sendFile(CLIENT_INDEX_PATH);
