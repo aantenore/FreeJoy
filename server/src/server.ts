@@ -39,6 +39,8 @@ async function bootstrap() {
     app.use(express.json());
 
     const CLIENT_PATH = path.join(__dirname, '../../client/dist_build');
+    const CLIENT_INDEX_PATH = path.join(CLIENT_PATH, 'index.html');
+    const clientIndexAvailable = fs.existsSync(CLIENT_INDEX_PATH);
     app.use(express.static(CLIENT_PATH));
 
     app.get('/api/room', (req, res) => {
@@ -47,8 +49,8 @@ async function bootstrap() {
 
     app.get('/{*splat}', (req, res) => {
         if (req.accepts('html')) {
-            if (fs.existsSync(path.join(CLIENT_PATH, 'index.html'))) {
-                res.sendFile(path.join(CLIENT_PATH, 'index.html'));
+            if (clientIndexAvailable) {
+                res.sendFile(CLIENT_INDEX_PATH);
             } else {
                 res.status(404).send('Client not built. Run `npm run build` in client folder.');
             }
