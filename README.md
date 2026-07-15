@@ -39,7 +39,7 @@ FreeJoy is a full-stack controller solution that turns any mobile device into a 
 
 ### Prerequisites
 
-*   **Node.js** 18+ and npm
+*   **Node.js** 20.19+ (20.x) or 22.12+ and npm
 *   **Python** 3.8+ with `vgamepad` library
 *   **Windows** (required for `vgamepad` Xbox 360 controller emulation)
 
