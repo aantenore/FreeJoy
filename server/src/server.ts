@@ -45,7 +45,7 @@ async function bootstrap() {
         res.json(roomManager.getState());
     });
 
-    app.get('*', (req, res) => {
+    app.get('/{*splat}', (req, res) => {
         if (req.accepts('html')) {
             if (fs.existsSync(path.join(CLIENT_PATH, 'index.html'))) {
                 res.sendFile(path.join(CLIENT_PATH, 'index.html'));
