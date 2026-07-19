@@ -1,5 +1,21 @@
 # FreeJoy - Universal Wireless Gamepad
 
+## In plain English
+
+FreeJoy turns phones and tablets into game controllers for a Windows PC, so a group can play together without owning a separate physical gamepad for every person. One computer hosts the room; players scan a QR code and their touch controls are translated into virtual Xbox 360 controllers.
+
+**Example:** during a four-player game night, the host opens FreeJoy on the PC and friends join with their phones. Each person receives a player slot, can reconnect after the phone sleeps, and controls the emulator through the same familiar layout.
+
+| Feature | What it means for players |
+| --- | --- |
+| QR-code connection | Joining does not require installing or pairing a separate mobile app. |
+| Automatic player slots | Up to four people can join without manually configuring every controller. |
+| Virtual Xbox 360 devices | Compatible Windows games and emulators see ordinary controller inputs. |
+| Session reconnection | Refreshing the browser or waking a phone does not immediately lose the assigned player. |
+| Host controls | The person running the game can see, remove, or reset connected players from one screen. |
+
+## Technical summary
+
 FreeJoy is a full-stack controller solution that turns any mobile device into a low-latency gamepad for PC emulators. It features a Node.js/Socket.IO backend using `vgamepad` for virtual Xbox 360 controller emulation and a React frontend with a premium Pro Controller UI.
 
 ## ⚡ Main Features
