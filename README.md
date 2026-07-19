@@ -14,9 +14,13 @@ FreeJoy turns phones and tablets into game controllers for a Windows PC, so a gr
 | Session reconnection | Refreshing the browser or waking a phone does not immediately lose the assigned player. |
 | Host controls | The person running the game can see, remove, or reset connected players from one screen. |
 
+> **Maturity and limits:** FreeJoy is a working Windows/Ryujinx prototype. It
+> depends on a local network and Python's `vgamepad`; latency has not been
+> independently benchmarked, and broader emulator support is not claimed.
+
 ## Technical summary
 
-FreeJoy is a full-stack controller solution that turns any mobile device into a low-latency gamepad for PC emulators. It features a Node.js/Socket.IO backend using `vgamepad` for virtual Xbox 360 controller emulation and a React frontend with a premium Pro Controller UI.
+FreeJoy is a full-stack controller solution that turns any mobile device into a networked gamepad for PC emulators. It features a Node.js/Socket.IO backend using `vgamepad` for virtual Xbox 360 controller emulation and a React frontend with a Pro Controller UI.
 
 ## ⚡ Main Features
 
