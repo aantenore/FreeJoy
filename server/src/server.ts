@@ -1,104 +1,161 @@
-import express from 'express';
-import { rateLimit } from 'express-rate-limit';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import qrcode from 'qrcode';
 import cors from 'cors';
-import path from 'path';
-import { networkInterfaces } from 'os';
+import express, { Request } from 'express';
 import fs from 'fs';
-import { RoomManager } from './roomManager';
-import { WSHandler } from './wsHandler';
+import { createServer } from 'http';
+import { networkInterfaces } from 'os';
+import path from 'path';
+import qrcode from 'qrcode';
+import { rateLimit } from 'express-rate-limit';
+import { Server } from 'socket.io';
+import { CapabilityAuthority, loadCapabilityConfig } from './authority';
 import { RyujinxPlugin } from './plugins/RyujinxPlugin';
+import { RoomManager } from './roomManager';
+import { HostRoomState } from './types';
+import { WSHandler } from './wsHandler';
 
-async function bootstrap() {
+export async function bootstrap(): Promise<void> {
     const app = express();
-    const PORT: number = parseInt(process.env.PORT || '3000', 10);
-
-    // Create Standard HTTP Server
-    const httpServer = createServer(app);
+    const port = parseIntegerSetting('PORT', 3_000, 1, 65_535);
     const protocol = 'http';
+    const capabilities = loadCapabilityConfig();
+    const authority = new CapabilityAuthority(capabilities);
 
-    // 1. Setup IO
-    const io = new Server(httpServer, {
-        cors: {
-            origin: "*",
-            methods: ["GET", "POST"]
-        }
-    });
-
-    // 2. Setup Core Logic
     const plugin = new RyujinxPlugin();
     await plugin.init();
 
     const roomManager = new RoomManager(plugin.maxPlayers);
-    const wsHandler = new WSHandler(io, roomManager, plugin);
+    const serverIp = roomManager.getServerIp();
+    const joinUrl = `${protocol}://${serverIp}:${port}/pad#room=${encodeURIComponent(roomManager.roomId)}&join=${encodeURIComponent(capabilities.joinToken)}`;
+    const hostUrl = `${protocol}://localhost:${port}/#host=${encodeURIComponent(capabilities.hostToken)}`;
+
+    const httpServer = createServer(app);
+    const io = new Server(httpServer, {
+        cors: {
+            origin: '*',
+            methods: ['GET', 'POST']
+        }
+    });
+    const wsHandler = new WSHandler(io, roomManager, plugin, authority, {
+        maximumInputEventsPerSecond: parseIntegerSetting(
+            'FREEJOY_INPUT_EVENTS_PER_SECOND',
+            120,
+            10,
+            1_000
+        )
+    });
     wsHandler.init();
 
-    // 3. Setup Express Routes
     app.use(cors());
-    app.use(express.json());
+    app.use(express.json({ limit: '16kb' }));
 
-    const CLIENT_PATH = path.join(__dirname, '../../client/dist_build');
-    const CLIENT_INDEX_PATH = path.join(CLIENT_PATH, 'index.html');
-    const clientIndexAvailable = fs.existsSync(CLIENT_INDEX_PATH);
+    const clientPath = path.join(__dirname, '../../client/dist_build');
+    const clientIndexPath = path.join(clientPath, 'index.html');
+    const clientIndexAvailable = fs.existsSync(clientIndexPath);
     const clientFallbackLimiter = rateLimit({
         windowMs: 60_000,
         limit: 120,
         standardHeaders: 'draft-8',
         legacyHeaders: false
     });
-    app.use(express.static(CLIENT_PATH));
+    app.use(express.static(clientPath));
 
-    app.get('/api/room', (req, res) => {
-        res.json(roomManager.getState());
+    app.get('/api/room', (request, response) => {
+        response.setHeader('Cache-Control', 'no-store');
+        if (!authority.permitsHost(readBearerToken(request))) {
+            response.status(403).json({
+                code: 'HOST_AUTH_REQUIRED',
+                message: 'A valid host capability is required.'
+            });
+            return;
+        }
+
+        const state: HostRoomState = {
+            ...roomManager.getPublicState(),
+            roomId: roomManager.roomId,
+            serverIp,
+            joinUrl
+        };
+        response.json(state);
     });
 
-    app.get('/{*splat}', clientFallbackLimiter, (req, res) => {
-        if (req.accepts('html')) {
+    app.get('/{*splat}', clientFallbackLimiter, (request, response) => {
+        if (request.accepts('html')) {
             if (clientIndexAvailable) {
-                res.sendFile(CLIENT_INDEX_PATH);
+                response.sendFile(clientIndexPath);
             } else {
-                res.status(404).send('Client not built. Run `npm run build` in client folder.');
+                response.status(404).send('Client not built. Run `npm run build` in client folder.');
             }
         } else {
-            res.status(404).send('Not Found');
+            response.status(404).send('Not Found');
         }
     });
 
-    // 4. Start HTTP Server
-    httpServer.listen(PORT, () => {
-        const roomState = roomManager.getState();
-        const serverIp = roomState.serverIp; // Already cached/detected
-
+    httpServer.listen(port, () => {
         console.log('==========================================');
         console.log('🎮 Wireless Gamepad Server Started (HTTP)');
         console.log('🔌 Plugin:', plugin.name);
         console.log('🏠 Room ID:', roomManager.roomId);
-        console.log('🔗 URL:', `${protocol}://${serverIp}:${PORT}`);
-
+        console.log('🖥️  Host URL:', hostUrl);
+        console.log('📱 Controller URL:', joinUrl);
         console.log('📱 Network Addresses:');
         const nets = networkInterfaces();
         for (const name of Object.keys(nets)) {
             const iface = nets[name];
-            if (iface) {
-                for (const net of iface) {
-                    if (net.family === 'IPv4' && !net.internal) {
-                        console.log(`   - ${name}: ${net.address}`);
-                    }
+            if (!iface) continue;
+            for (const net of iface) {
+                if (net.family === 'IPv4' && !net.internal) {
+                    console.log(`   - ${name}: ${net.address}`);
                 }
             }
         }
-
-        const joinUrl = `${protocol}://${serverIp}:${PORT}/pad`;
-        console.log('📱 QR Code URL:', joinUrl);
         console.log('==========================================\n');
 
-        qrcode.toString(joinUrl, { type: 'terminal', small: true }, (err, qr) => {
-            if (!err) console.log(qr);
-            console.log('\nIMPORTANT: Room ID is', roomManager.roomId);
+        qrcode.toString(joinUrl, { type: 'terminal', small: true }, (error, qr) => {
+            if (!error) console.log(qr);
+            console.log('\nThe QR code carries the short-lived controller capability.');
         });
     });
+
+    let shuttingDown = false;
+    const shutdown = async (signal: string): Promise<void> => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        console.log(`[Server] ${signal} received; releasing controllers`);
+        wsHandler.shutdown();
+        io.disconnectSockets(true);
+        await plugin.cleanup();
+        await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    };
+
+    process.once('SIGINT', () => void shutdown('SIGINT'));
+    process.once('SIGTERM', () => void shutdown('SIGTERM'));
 }
 
-bootstrap().catch(err => console.error(err));
+function readBearerToken(request: Request): string | undefined {
+    const authorization = request.header('authorization');
+    if (!authorization) return undefined;
+    const [scheme, token, extra] = authorization.trim().split(/\s+/u);
+    return scheme?.toLowerCase() === 'bearer' && token && !extra ? token : undefined;
+}
+
+function parseIntegerSetting(
+    name: string,
+    fallback: number,
+    minimum: number,
+    maximum: number
+): number {
+    const raw = process.env[name];
+    if (!raw) return fallback;
+    const value = Number(raw);
+    if (!Number.isInteger(value) || value < minimum || value > maximum) {
+        throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+    }
+    return value;
+}
+
+if (require.main === module) {
+    bootstrap().catch(error => {
+        console.error(error);
+        process.exitCode = 1;
+    });
+}

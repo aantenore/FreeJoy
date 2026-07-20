@@ -73,6 +73,11 @@ def handle_button(player_id: int, button: str, pressed: bool):
 def handle_analog(player_id: int, stick: str, x: float, y: float):
     """Handle analog stick input."""
     gamepad = get_or_create_controller(player_id)
+
+    # Keep the native driver boundary safe even if a future caller bypasses the
+    # TypeScript protocol validator.
+    x = max(-1.0, min(1.0, float(x)))
+    y = max(-1.0, min(1.0, float(y)))
     
     # Convert from -1.0 to 1.0 range to -32768 to 32767 range
     x_int = int(x * 32767)

@@ -113,8 +113,14 @@ while ($true) {
             }
             1 {
                 Write-Host "Starting Server..." -ForegroundColor Yellow
+                if (-not $env:FREEJOY_HOST_TOKEN) {
+                    $env:FREEJOY_HOST_TOKEN = [Guid]::NewGuid().ToString("N")
+                }
+                if (-not $env:FREEJOY_JOIN_TOKEN) {
+                    $env:FREEJOY_JOIN_TOKEN = [Guid]::NewGuid().ToString("N")
+                }
                 Write-Host "Opening Browser..." -ForegroundColor Cyan
-                Start-Process "http://localhost:3000"
+                Start-Process "http://localhost:3000/#host=$($env:FREEJOY_HOST_TOKEN)"
                 
                 Write-Host "Press Ctrl+C to Stop" -ForegroundColor Gray
                 cd server

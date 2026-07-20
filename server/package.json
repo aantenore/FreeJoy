@@ -7,10 +7,12 @@
         "node": "^20.19.0 || >=22.12.0"
     },
     "scripts": {
-        "start": "ts-node src/server.ts",
-        "build": "tsc",
-        "dev": "nodemon --exec ts-node src/server.ts",
-        "prod": "node dist/server.js"
+        "start": "tsx src/server.ts",
+        "build": "tsc && node scripts/copy-python-runtime.mjs",
+        "dev": "tsx watch src/server.ts",
+        "prod": "node dist/server.js",
+        "prepack": "npm run build",
+        "test": "tsx --test test/authority.test.ts test/protocol.test.ts test/roomManager.test.ts test/wsHandler.integration.test.ts"
     },
     "dependencies": {
         "cors": "^2.8.5",
@@ -25,8 +27,8 @@
         "@types/express": "^5.0.6",
         "@types/node": "^20.10.0",
         "@types/qrcode": "^1.5.5",
-        "nodemon": "^3.0.1",
-        "ts-node": "^10.9.1",
+        "socket.io-client": "^4.7.2",
+        "tsx": "^4.23.1",
         "typescript": "^7.0.2"
     }
 }

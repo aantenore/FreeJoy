@@ -46,10 +46,35 @@ export class RyujinxPlugin implements IPlugin {
 
     async cleanup(): Promise<void> {
         console.log('[Ryujinx] Cleaning up Python process...');
-        if (this.pythonProcess) {
-            this.pythonProcess.kill();
-            this.pythonProcess = null;
-        }
+        const child = this.pythonProcess;
+        if (!child) return;
+
+        // Closing stdin lets the Python loop reach its finally block and reset
+        // every remaining virtual controller before a forced termination.
+        await new Promise<void>((resolve) => {
+            let completed = false;
+            const finish = () => {
+                if (completed) return;
+                completed = true;
+                clearTimeout(forceTimer);
+                resolve();
+            };
+            const forceTimer = setTimeout(() => {
+                child.kill();
+                finish();
+            }, 2_000);
+            child.once('exit', finish);
+            child.stdin?.end();
+        });
+        this.pythonProcess = null;
+    }
+
+    initPlayer(playerIndex: number): void {
+        console.log(`[Ryujinx] Initializing controller for Player ${playerIndex}`);
+        this.sendCommand({
+            action: 'init',
+            playerId: playerIndex
+        });
     }
 
     private sendCommand(cmd: object): void {
@@ -102,8 +127,8 @@ export class RyujinxPlugin implements IPlugin {
         return 1; // Not used
     }
 
-    playerDisconnected(playerIndex: number): void {
-        console.log(`[Ryujinx] Player ${playerIndex} disconnected, cleaning up controller`);
+    releasePlayer(playerIndex: number): void {
+        console.log(`[Ryujinx] Releasing controller for Player ${playerIndex}`);
         this.sendCommand({
             action: 'disconnect',
             playerId: playerIndex

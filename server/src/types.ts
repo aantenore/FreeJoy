@@ -7,9 +7,19 @@ export type Player = {
     deviceName?: string;  // Device name from user agent
 };
 
-export type RoomState = {
-    roomId: string;
-    serverIp?: string;
-    players: Player[];
+export type PublicPlayer = {
+    playerId: number;
+    connected: boolean;
+    deviceName?: string;
+};
+
+export type PublicRoomState = {
+    players: PublicPlayer[];
     maxPlayers: number;
+};
+
+export type HostRoomState = PublicRoomState & {
+    roomId: string;
+    serverIp: string;
+    joinUrl: string;
 };

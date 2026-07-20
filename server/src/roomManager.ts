@@ -1,33 +1,41 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Player, RoomState } from './types';
+import { Player, PublicPlayer, PublicRoomState } from './types';
 import { networkInterfaces } from 'os';
+
+export type RoomManagerOptions = {
+    roomId?: string;
+    serverIp?: string;
+    now?: () => number;
+};
 
 export class RoomManager {
     public readonly roomId: string;
     private players: Map<number, Player> = new Map(); // Slot ID (1-4) -> Player
-    private MAX_PLAYERS: number;
-    private cachedServerIp: string; // Cache IP for performance
+    private readonly maximumPlayers: number;
+    private readonly cachedServerIp: string; // Cache IP for performance
+    private readonly now: () => number;
     private kickedClients: Set<string> = new Set(); // Track kicked clientIds
 
-    constructor(maxPlayers: number = 4) {
-        this.roomId = uuidv4().split('-')[0].toUpperCase();
-        this.MAX_PLAYERS = maxPlayers;
-        this.cachedServerIp = this.detectLocalIP(); // Cache IP at startup
+    constructor(maxPlayers: number = 4, options: RoomManagerOptions = {}) {
+        this.roomId = options.roomId ?? uuidv4().split('-')[0].toUpperCase();
+        this.maximumPlayers = maxPlayers;
+        this.cachedServerIp = options.serverIp ?? this.detectLocalIP(); // Cache IP at startup
+        this.now = options.now ?? Date.now;
         console.log(`[Room] Ephemeral Room Created: ${this.roomId}`);
         console.log(`[Room] Server IP: ${this.cachedServerIp}`);
-        console.log(`[Room] Max Players: ${this.MAX_PLAYERS}`);
+        console.log(`[Room] Max Players: ${this.maximumPlayers}`);
     }
 
     public validateRoom(id: string): boolean {
         const isValid = this.roomId === id;
         if (!isValid) {
-            console.log(`[Room] Validation Failed: Received '${id}' vs Expected '${this.roomId}'`);
+            console.log('[Room] Validation failed for supplied room identifier');
         }
         return isValid;
     }
 
     public isFull(): boolean {
-        return this.players.size >= this.MAX_PLAYERS;
+        return this.players.size >= this.maximumPlayers;
     }
 
     public join(clientId: string, socketId: string, deviceName?: string): Player | null {
@@ -42,7 +50,7 @@ export class RoomManager {
             if (player.clientId === clientId) {
                 player.socketId = socketId;
                 player.connected = true;
-                player.lastPing = Date.now();
+                player.lastPing = this.now();
                 if (deviceName) player.deviceName = deviceName;
                 console.log(`[Room] Player ${slot} Reconnected`);
                 return player;
@@ -50,14 +58,14 @@ export class RoomManager {
         }
 
         // 2. Assign first free slot (Auto-assignment)
-        for (let i = 1; i <= this.MAX_PLAYERS; i++) {
+        for (let i = 1; i <= this.maximumPlayers; i++) {
             if (!this.players.has(i)) {
                 const newPlayer: Player = {
                     id: i,
                     clientId,
                     socketId,
                     connected: true,
-                    lastPing: Date.now(),
+                    lastPing: this.now(),
                     deviceName
                 };
                 this.players.set(i, newPlayer);
@@ -69,32 +77,37 @@ export class RoomManager {
         return null;
     }
 
-    public disconnect(socketId: string): void {
+    public disconnect(socketId: string): Player | undefined {
         for (const player of this.players.values()) {
             if (player.socketId === socketId) {
                 player.connected = false;
                 console.log(`[Room] Player ${player.id} Disconnected`);
+                return player;
             }
         }
+        return undefined;
     }
 
     public handlePing(socketId: string) {
         for (const player of this.players.values()) {
             if (player.socketId === socketId) {
-                player.lastPing = Date.now();
+                player.lastPing = this.now();
                 player.connected = true; // Implicitly connected if pinging
             }
         }
     }
 
-    public cleanupStale(timeoutMs: number = 30000): void {
-        const now = Date.now();
+    public cleanupStale(timeoutMs: number = 30000): Player[] {
+        const removed: Player[] = [];
+        const now = this.now();
         for (const [slot, player] of this.players.entries()) {
             if (!player.connected && (now - player.lastPing > timeoutMs)) {
                 console.log(`[Room] purging stale player ${slot}`);
                 this.players.delete(slot);
+                removed.push(player);
             }
         }
+        return removed;
     }
 
     public getPlayerBySocket(socketId: string): Player | undefined {
@@ -149,21 +162,31 @@ export class RoomManager {
         return '127.0.0.1';
     }
 
-    public getState(): RoomState {
+    public getServerIp(): string {
+        return this.cachedServerIp;
+    }
+
+    public getPublicState(): PublicRoomState {
         return {
-            roomId: this.roomId,
-            serverIp: this.cachedServerIp, // Use cached IP for performance
-            players: Array.from(this.players.values()),
-            maxPlayers: this.MAX_PLAYERS
+            players: this.getPlayersList(),
+            maxPlayers: this.maximumPlayers
         };
     }
 
-    public getPlayersList(): Array<{ playerId: number; connected: boolean; deviceName?: string }> {
+    public getPlayersList(): PublicPlayer[] {
         return Array.from(this.players.values()).map(p => ({
             playerId: p.id,
             connected: p.connected,
             deviceName: p.deviceName
         }));
+    }
+
+    public getPlayers(): Player[] {
+        return Array.from(this.players.values());
+    }
+
+    public getMaximumPlayers(): number {
+        return this.maximumPlayers;
     }
 
     public kickPlayer(playerId: number): Player | null {

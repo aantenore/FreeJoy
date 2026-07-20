@@ -12,61 +12,70 @@ function App() {
     const [mode, setMode] = useState('loading'); // 'loading' | 'host' | 'gamepad'
     const [activeRoom, setActiveRoom] = useState(null);
     const [hostRoom, setHostRoom] = useState(null);
+    const [hostToken, setHostToken] = useState(null);
     const [players, setPlayers] = useState([]);
 
     // Initial Routing Logic
     useEffect(() => {
         const path = window.location.pathname;
+        const capabilityFragment = new URLSearchParams(window.location.hash.slice(1));
 
         // ROUTE: /pad -> Gamepad Mode (Stateless)
         if (path === '/pad') {
-            // Fetch Room ID immediately
-            fetch(`/api/room?t=${Date.now()}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.roomId) {
-                        console.log("Stateless Init: Found active room", data.roomId);
-                        setActiveRoom(data.roomId);
-                        setMode('gamepad');
-                    } else {
-                        // Fallback if no room active (e.g. server just started but room not init? Unlikely)
-                        console.error("No active room found via API");
-                        setMode('error');
-                    }
-                })
-                .catch(err => {
-                    console.error("Failed to init gamepad", err);
-                    setMode('error');
-                });
+            const roomId = capabilityFragment.get('room');
+            const joinToken = capabilityFragment.get('join');
+            if (!roomId || !joinToken) {
+                setMode('error');
+                return;
+            }
+            setActiveRoom({ roomId, joinToken });
+            setMode('gamepad');
         }
         // ROUTE: / (root) -> Host Mode
         else {
+            const token = capabilityFragment.get('host');
+            if (!token) {
+                setMode('error');
+                return;
+            }
+            setHostToken(token);
             setMode('host');
         }
     }, []);
 
     // HOST MODE FETCH
     useEffect(() => {
-        if (mode === 'host') {
-            fetch('/api/room')
-                .then(res => res.json())
+        if (mode === 'host' && hostToken) {
+            fetch('/api/room', {
+                headers: { Authorization: `Bearer ${hostToken}` }
+            })
+                .then(res => {
+                    if (!res.ok) throw new Error(`Host authorization failed (${res.status})`);
+                    return res.json();
+                })
                 .then(data => setHostRoom(data))
-                .catch(err => console.error("Failed to fetch room info", err));
+                .catch(err => {
+                    console.error("Failed to fetch room info", err);
+                    setMode('error');
+                });
         }
-    }, [mode]);
+    }, [mode, hostToken]);
 
     // WebSocket for players list (host mode only)
     useEffect(() => {
-        if (mode === 'host') {
-            const socket = io();
+        if (mode === 'host' && hostToken) {
+            const socket = io({ auth: { role: 'host', token: hostToken } });
             setHostSocket(socket);
             socket.on('players_list', (list) => {
                 setPlayers(list);
             });
+            socket.on('operation_error', (error) => {
+                console.error('Host operation rejected', error);
+            });
             socket.emit('get_players'); // Request initial list
             return () => socket.disconnect();
         }
-    }, [mode]);
+    }, [mode, hostToken]);
 
     const [hostSocket, setHostSocket] = useState(null);
 
@@ -87,14 +96,7 @@ function App() {
     if (mode === 'host') {
         if (!hostRoom) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white relative overflow-hidden"><div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 animate-gradient-xy"></div><div className="relative z-10 flex flex-col items-center animate-pulse"><p className="text-xl font-bold">Initializing Server...</p></div></div>;
 
-        // Use server-detected IP from API response
-        const serverIp = hostRoom.serverIp;
-        const port = window.location.port ? `:${window.location.port}` : '';
-        const protocol = window.location.protocol;
-        const baseUrl = `${protocol}//${serverIp}${port}/pad`;
-
-        // Single QR code for Pro Controller with auto-assignment
-        const qrCodeUrl = `${baseUrl}?type=pro`;
+        const qrCodeUrl = hostRoom.joinUrl;
 
         return (
             <div className="h-screen w-full flex flex-col items-center relative overflow-y-auto bg-slate-900 p-4 pb-20 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
@@ -199,7 +201,7 @@ function App() {
 
                     <div className="text-white/20 text-xs font-mono text-center">
                         <p>Server running at:</p>
-                        <p className="select-all">{baseUrl}</p>
+                        <p className="select-all">{qrCodeUrl}</p>
                     </div>
                 </div>
             </div>
@@ -208,7 +210,7 @@ function App() {
 
     // GAMEPAD MODE
     // All connections now use Pro Controller layout
-    return <ProController roomId={activeRoom} />;
+    return <ProController roomId={activeRoom.roomId} joinToken={activeRoom.joinToken} />;
 }
 
 export default App;

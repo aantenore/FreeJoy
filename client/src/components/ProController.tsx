@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { Joystick } from 'react-joystick-component';
 import io, { Socket } from 'socket.io-client';
 
-export function ProController({ roomId }: { roomId: string }) {
+export function ProController({ roomId, joinToken }: { roomId: string; joinToken: string }) {
     const [status, setStatus] = useState('connecting');
     const [playerId, setPlayerId] = useState<number | null>(null);
     const socket = useRef<Socket | null>(null);
@@ -13,7 +13,10 @@ export function ProController({ roomId }: { roomId: string }) {
         const url = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
 
         // Single socket connection with auto-assigned player ID
-        const s = io(url, { reconnectionAttempts: 5 });
+        const s = io(url, {
+            reconnectionAttempts: 5,
+            auth: { role: 'player', token: joinToken }
+        });
 
         s.on('connect', () => {
             console.log("Pro Controller: Socket Connected");
@@ -63,7 +66,7 @@ export function ProController({ roomId }: { roomId: string }) {
         });
 
         s.on('disconnect', () => setStatus('disconnected'));
-        s.on('error', (err: any) => {
+        s.on('operation_error', (err: { code?: string; message?: string }) => {
             console.error("Connection error:", err);
             if (err.code === 'ROOM_FULL') {
                 alert('Room is full! Maximum 4 players.');
@@ -78,7 +81,7 @@ export function ProController({ roomId }: { roomId: string }) {
         return () => {
             s.disconnect();
         };
-    }, [roomId]);
+    }, [joinToken, roomId]);
 
     // === INPUT HANDLERS ===
     const sendInput = (btn: string, state: 0 | 1) => {

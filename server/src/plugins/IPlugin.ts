@@ -15,9 +15,12 @@ export interface IPlugin {
     /** Send analog stick input (Left/Right stick) */
     sendAnalogInput(playerIndex: number, stick: 'left' | 'right', x: number, y: number): void;
 
-    /** Optional: Initialize player controller immediately on join */
-    initPlayer?(playerIndex: number): void;
+    /** Initialize one player controller for the current connection lifecycle. */
+    initPlayer(playerIndex: number): void;
+
+    /** Reset and release one player controller. Implementations must be idempotent. */
+    releasePlayer(playerIndex: number): void;
 
     /** Get player profile configuration */
-    getProfile?(playerIndex: number): any;
+    getProfile?(playerIndex: number): unknown;
 }
