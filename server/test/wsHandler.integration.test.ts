@@ -58,7 +58,8 @@ async function createHarness(
     const handler = new WSHandler(io, room, plugin, authority, {
         cleanupIntervalMs: 60_000,
         staleTimeoutMs,
-        maximumInputEventsPerSecond
+        maximumInputEventsPerSecond,
+        now
     });
     handler.init();
     await new Promise<void>(resolve => http.listen(0, '127.0.0.1', resolve));
@@ -278,6 +279,43 @@ test('exceeding the input ceiling releases and disconnects the controller', asyn
             { player: 1, button: 'A', pressed: true }
         ]);
         assert.deepEqual(harness.plugin.released, [1]);
+        assert.deepEqual(harness.room.getPlayersList(), []);
+
+        const rejoin = await connect(harness, 'player', JOIN_TOKEN);
+        const rejoined = waitForEvent<{ playerId: number }>(rejoin, 'joined');
+        rejoin.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
+        assert.equal((await rejoined).playerId, 1);
+    } finally {
+        await closeHarness(harness);
+    }
+});
+
+test('the per-controller input ceiling survives a voluntary reconnect', async () => {
+    const harness = await createHarness(1);
+    try {
+        const first = await connect(harness, 'player', JOIN_TOKEN);
+        const firstJoined = waitForEvent(first, 'joined');
+        first.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
+        await firstJoined;
+        first.emit('input', { btn: 'A', state: 1 });
+        await waitUntil(() => harness.plugin.buttons.length === 1);
+        first.disconnect();
+        await waitUntil(() => harness.plugin.released.length === 1);
+
+        const second = await connect(harness, 'player', JOIN_TOKEN);
+        const secondJoined = waitForEvent(second, 'joined');
+        second.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
+        await secondJoined;
+
+        const rejected = waitForEvent<{ code: string }>(second, 'operation_error');
+        const disconnected = waitForEvent(second, 'disconnect');
+        second.emit('input', { btn: 'A', state: 0 });
+        assert.equal((await rejected).code, 'RATE_LIMITED');
+        await disconnected;
+        await waitUntil(() => harness.plugin.released.length === 2);
+        assert.deepEqual(harness.plugin.buttons, [
+            { player: 1, button: 'A', pressed: true }
+        ]);
         assert.deepEqual(harness.room.getPlayersList(), []);
     } finally {
         await closeHarness(harness);

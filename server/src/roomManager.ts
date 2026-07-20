@@ -194,15 +194,23 @@ export class RoomManager {
         return this.maximumPlayers;
     }
 
-    public kickPlayer(playerId: number): Player | null {
+    public removePlayer(playerId: number): Player | null {
         const player = this.players.get(playerId);
         if (player) {
             this.players.delete(playerId);
-            this.kickedClients.add(player.clientId); // Prevent rejoin
-            console.log(`[Room] Player ${playerId} kicked (clientId: ${player.clientId})`);
+            console.log(`[Room] Player ${playerId} removed`);
             return player;
         }
         return null;
+    }
+
+    public kickPlayer(playerId: number): Player | null {
+        const player = this.removePlayer(playerId);
+        if (player) {
+            this.kickedClients.add(player.clientId); // Prevent rejoin
+            console.log(`[Room] Player ${playerId} kicked (clientId: ${player.clientId})`);
+        }
+        return player;
     }
 
     public reset(): Player[] {

@@ -9,9 +9,10 @@
     "scripts": {
         "start": "tsx src/server.ts",
         "build": "tsc && node scripts/copy-runtime-assets.mjs",
+        "build:client": "npm --prefix ../client ci && npm --prefix ../client run build",
         "dev": "tsx watch src/server.ts",
         "prod": "node dist/server.js",
-        "prepack": "npm run build",
+        "prepack": "npm run build:client && npm run build",
         "package:smoke": "node scripts/package-smoke.mjs",
         "test": "tsx --test test/authority.test.ts test/protocol.test.ts test/roomManager.test.ts test/wsHandler.integration.test.ts"
     },

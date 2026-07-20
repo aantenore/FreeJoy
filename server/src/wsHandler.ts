@@ -15,15 +15,21 @@ export type WSHandlerOptions = {
     cleanupIntervalMs?: number;
     staleTimeoutMs?: number;
     maximumInputEventsPerSecond?: number;
+    now?: () => number;
 };
 
 const HOST_SOCKET_ROOM = 'freejoy:authorized-hosts';
 
 export class WSHandler {
     private readonly activePlayers = new Set<number>();
+    private readonly inputLimiters = new Map<
+        string,
+        { limiter: FixedWindowRateLimiter; lastSeenAt: number }
+    >();
     private readonly cleanupIntervalMs: number;
     private readonly staleTimeoutMs: number;
     private readonly maximumInputEventsPerSecond: number;
+    private readonly now: () => number;
     private cleanupTimer?: NodeJS.Timeout;
 
     constructor(
@@ -36,6 +42,7 @@ export class WSHandler {
         this.cleanupIntervalMs = options.cleanupIntervalMs ?? 2_000;
         this.staleTimeoutMs = options.staleTimeoutMs ?? 30_000;
         this.maximumInputEventsPerSecond = options.maximumInputEventsPerSecond ?? 120;
+        this.now = options.now ?? Date.now;
     }
 
     public init(): void {
@@ -67,6 +74,7 @@ export class WSHandler {
     public cleanupStalePlayers(): void {
         for (const player of this.room.cleanupStale(this.staleTimeoutMs)) {
             this.releasePlayer(player.id);
+            this.inputLimiters.delete(player.clientId);
             if (player.socketId) {
                 const socket = this.io.sockets.sockets.get(player.socketId);
                 if (socket) {
@@ -79,6 +87,7 @@ export class WSHandler {
                 }
             }
         }
+        this.pruneInputLimiters();
         this.broadcastState();
         this.broadcastPlayerList();
     }
@@ -91,6 +100,7 @@ export class WSHandler {
         for (const player of this.room.getPlayers()) {
             this.releasePlayer(player.id);
         }
+        this.inputLimiters.clear();
     }
 
     private registerHostHandlers(socket: Socket): void {
@@ -108,6 +118,7 @@ export class WSHandler {
             const kicked = this.room.kickPlayer(playerId);
             if (kicked) {
                 this.releasePlayer(kicked.id);
+                this.inputLimiters.delete(kicked.clientId);
                 if (kicked.connected && kicked.socketId) {
                     this.io.to(kicked.socketId).emit('kicked', { reason: 'Host kicked you' });
                     this.io.sockets.sockets.get(kicked.socketId)?.disconnect(true);
@@ -120,6 +131,7 @@ export class WSHandler {
         socket.on('reset_room', () => {
             console.log('[WS] Authorized room reset requested');
             const allPlayers = this.room.reset();
+            this.inputLimiters.clear();
             for (const player of allPlayers) {
                 this.releasePlayer(player.id);
                 if (player.connected && player.socketId) {
@@ -134,19 +146,17 @@ export class WSHandler {
     }
 
     private registerPlayerHandlers(socket: Socket): void {
-        const inputLimiter = new FixedWindowRateLimiter(this.maximumInputEventsPerSecond);
         let inputRevoked = false;
 
         const permitsInput = (): boolean => {
             if (inputRevoked) return false;
-            if (inputLimiter.allow()) return true;
+            const player = this.room.getPlayerBySocket(socket.id);
+            if (!player) return false;
+            if (this.inputLimiterFor(player.clientId).allow()) return true;
 
             inputRevoked = true;
-            const player = this.room.getPlayerBySocket(socket.id);
-            if (player) {
-                const removed = this.room.kickPlayer(player.id);
-                if (removed) this.releasePlayer(removed.id);
-            }
+            const removed = this.room.removePlayer(player.id);
+            if (removed) this.releasePlayer(removed.id);
             this.emitError(
                 socket,
                 'RATE_LIMITED',
@@ -242,6 +252,29 @@ export class WSHandler {
         if (this.activePlayers.has(playerId)) return;
         this.plugin.initPlayer(playerId);
         this.activePlayers.add(playerId);
+    }
+
+    private inputLimiterFor(clientId: string): FixedWindowRateLimiter {
+        const existing = this.inputLimiters.get(clientId);
+        if (existing) {
+            existing.lastSeenAt = this.now();
+            return existing.limiter;
+        }
+
+        const limiter = new FixedWindowRateLimiter(
+            this.maximumInputEventsPerSecond,
+            1_000,
+            this.now
+        );
+        this.inputLimiters.set(clientId, { limiter, lastSeenAt: this.now() });
+        return limiter;
+    }
+
+    private pruneInputLimiters(): void {
+        const expiresBefore = this.now() - Math.max(2_000, this.staleTimeoutMs);
+        for (const [clientId, state] of this.inputLimiters.entries()) {
+            if (state.lastSeenAt < expiresBefore) this.inputLimiters.delete(clientId);
+        }
     }
 
     private releasePlayer(playerId: number): void {

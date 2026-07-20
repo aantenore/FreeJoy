@@ -43,6 +43,13 @@ test('a live player cannot be taken over and a kicked identity cannot rejoin', (
     assert.equal(room.join(CLIENT_ID, 'socket-3'), null);
 });
 
+test('removing a player releases the slot without adding a host ban', () => {
+    const room = new RoomManager(4, { roomId: 'ABCDEF12', serverIp: '127.0.0.1' });
+    assert.ok(room.join(CLIENT_ID, 'socket-1'));
+    assert.equal(room.removePlayer(1)?.id, 1);
+    assert.equal(room.join(CLIENT_ID, 'socket-2')?.id, 1);
+});
+
 test('a connected controller with an expired lease is stale', () => {
     let now = 1_000;
     const room = new RoomManager(4, {

@@ -19,7 +19,9 @@ function loadOrCreateClientId(): string {
 export function ProController({ roomId, joinToken }: { roomId: string; joinToken: string }) {
     const [status, setStatus] = useState('connecting');
     const [playerId, setPlayerId] = useState<number | null>(null);
+    const [errorMessage, setErrorMessage] = useState('The controller could not join this room.');
     const socket = useRef<Socket | null>(null);
+    const operationFailed = useRef(false);
 
     // === SOCKET CONNECTION LOGIC ===
     useEffect(() => {
@@ -33,6 +35,9 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
 
         s.on('connect', () => {
             console.log("Pro Controller: Socket Connected");
+            operationFailed.current = false;
+            setPlayerId(null);
+            setStatus('connecting');
             const clientId = loadOrCreateClientId();
 
             // Get device name from user agent
@@ -73,13 +78,20 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
             window.location.href = '/'; // Redirect to home instead of reload
         });
 
-        s.on('disconnect', () => setStatus('disconnected'));
+        s.on('disconnect', (reason) => {
+            setPlayerId(null);
+            if (operationFailed.current) return;
+            setStatus(reason === 'io server disconnect' ? 'disconnected' : 'connecting');
+        });
         s.on('operation_error', (err: { code?: string; message?: string }) => {
             console.error("Connection error:", err);
             if (err.code === 'ROOM_FULL') {
                 alert('Room is full! Maximum 4 players.');
                 window.location.href = '/';
             } else {
+                operationFailed.current = true;
+                setPlayerId(null);
+                setErrorMessage(err.message || 'The controller could not join this room.');
                 setStatus('error');
             }
         });
@@ -117,8 +129,38 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
         return () => document.removeEventListener('contextmenu', handler);
     }, []);
 
-    // Loading/Error states
-    if (status === 'connecting' || !playerId) {
+    // Terminal states must render before the playerId loading guard.
+    if (status === 'error') {
+        return (
+            <div className="w-screen h-dvh bg-slate-900 flex items-center justify-center text-white">
+                <div className="text-center px-6">
+                    <div className="text-6xl mb-6">⚠️</div>
+                    <p className="text-2xl font-bold text-red-400 mb-4">Controller Unavailable</p>
+                    <p className="text-slate-300 mb-6">{errorMessage}</p>
+                    <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 rounded-lg font-bold">
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === 'disconnected') {
+        return (
+            <div className="w-screen h-dvh bg-slate-900 flex items-center justify-center text-white">
+                <div className="text-center px-6">
+                    <div className="text-6xl mb-6">🔌</div>
+                    <p className="text-2xl font-bold mb-4">Controller Released</p>
+                    <p className="text-slate-300 mb-6">The host ended this controller session. Reload to request a new slot.</p>
+                    <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 rounded-lg font-bold">
+                        Reconnect
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === 'connecting' || playerId === null) {
         return (
             <div className="w-screen h-dvh bg-slate-900 flex items-center justify-center text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900"></div>
@@ -129,20 +171,6 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
                     </div>
                     <p className="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] to-[#FF4D6D]">FREEJOY</p>
                     <p className="text-lg font-medium text-slate-300 mt-2">Connecting to Room...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (status === 'error') {
-        return (
-            <div className="w-screen h-dvh bg-slate-900 flex items-center justify-center text-white">
-                <div className="text-center">
-                    <div className="text-6xl mb-6">⚠️</div>
-                    <p className="text-2xl font-bold text-red-400 mb-4">Connection Error</p>
-                    <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 rounded-lg font-bold">
-                        Retry
-                    </button>
                 </div>
             </div>
         );
