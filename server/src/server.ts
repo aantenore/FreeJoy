@@ -2,9 +2,7 @@ import cors from 'cors';
 import express, { Request } from 'express';
 import fs from 'fs';
 import { createServer } from 'http';
-import { networkInterfaces } from 'os';
 import path from 'path';
-import qrcode from 'qrcode';
 import { rateLimit } from 'express-rate-limit';
 import { Server } from 'socket.io';
 import { CapabilityAuthority, loadCapabilityConfig } from './authority';
@@ -19,14 +17,25 @@ export async function bootstrap(): Promise<void> {
     const protocol = 'http';
     const capabilities = loadCapabilityConfig();
     const authority = new CapabilityAuthority(capabilities);
+    const controllerLeaseMs = parseIntegerSetting(
+        'FREEJOY_CONTROLLER_LEASE_MS',
+        30_000,
+        5_000,
+        300_000
+    );
+    const cleanupIntervalMs = parseIntegerSetting(
+        'FREEJOY_CLEANUP_INTERVAL_MS',
+        Math.min(2_000, Math.floor(controllerLeaseMs / 3)),
+        250,
+        controllerLeaseMs
+    );
 
     const plugin = new RyujinxPlugin();
     await plugin.init();
 
     const roomManager = new RoomManager(plugin.maxPlayers);
     const serverIp = roomManager.getServerIp();
-    const joinUrl = `${protocol}://${serverIp}:${port}/pad#room=${encodeURIComponent(roomManager.roomId)}&join=${encodeURIComponent(capabilities.joinToken)}`;
-    const hostUrl = `${protocol}://localhost:${port}/#host=${encodeURIComponent(capabilities.hostToken)}`;
+    const createJoinUrl = () => `${protocol}://${serverIp}:${port}/pad#room=${encodeURIComponent(roomManager.roomId)}&join=${encodeURIComponent(authority.getJoinToken())}`;
 
     const httpServer = createServer(app);
     const io = new Server(httpServer, {
@@ -36,6 +45,8 @@ export async function bootstrap(): Promise<void> {
         }
     });
     const wsHandler = new WSHandler(io, roomManager, plugin, authority, {
+        cleanupIntervalMs,
+        staleTimeoutMs: controllerLeaseMs,
         maximumInputEventsPerSecond: parseIntegerSetting(
             'FREEJOY_INPUT_EVENTS_PER_SECOND',
             120,
@@ -77,7 +88,7 @@ export async function bootstrap(): Promise<void> {
             ...roomManager.getPublicState(),
             roomId: roomManager.roomId,
             serverIp,
-            joinUrl
+            joinUrl: createJoinUrl()
         };
         response.json(state);
     });
@@ -99,25 +110,9 @@ export async function bootstrap(): Promise<void> {
         console.log('🎮 Wireless Gamepad Server Started (HTTP)');
         console.log('🔌 Plugin:', plugin.name);
         console.log('🏠 Room ID:', roomManager.roomId);
-        console.log('🖥️  Host URL:', hostUrl);
-        console.log('📱 Controller URL:', joinUrl);
-        console.log('📱 Network Addresses:');
-        const nets = networkInterfaces();
-        for (const name of Object.keys(nets)) {
-            const iface = nets[name];
-            if (!iface) continue;
-            for (const net of iface) {
-                if (net.family === 'IPv4' && !net.internal) {
-                    console.log(`   - ${name}: ${net.address}`);
-                }
-            }
-        }
+        console.log('🔐 Capability URLs are intentionally omitted from process logs.');
+        console.log('🖥️  Use Launcher.ps1 or the configured host capability to open the host UI.');
         console.log('==========================================\n');
-
-        qrcode.toString(joinUrl, { type: 'terminal', small: true }, (error, qr) => {
-            if (!error) console.log(qr);
-            console.log('\nThe QR code carries the short-lived controller capability.');
-        });
     });
 
     let shuttingDown = false;

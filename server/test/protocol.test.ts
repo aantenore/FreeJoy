@@ -8,16 +8,13 @@ import {
     parsePlayerId
 } from '../src/protocol';
 
-const CLIENT_ID = `pro-${'a'.repeat(32)}`;
-
 test('join validation normalizes bounded identifiers without accepting control characters', () => {
     assert.deepEqual(
-        parseJoinRequest({ roomId: 'abcdef12', clientId: CLIENT_ID, deviceName: '  Phone\n' }),
-        { roomId: 'ABCDEF12', clientId: CLIENT_ID, deviceName: 'Phone' }
+        parseJoinRequest({ roomId: 'abcdef12', deviceName: '  Phone\n' }),
+        { roomId: 'ABCDEF12', deviceName: 'Phone' }
     );
-    assert.equal(parseJoinRequest({ roomId: 'not-a-room', clientId: CLIENT_ID }), undefined);
-    assert.equal(parseJoinRequest({ roomId: 'ABCDEF12', clientId: 'pro-123' }), undefined);
-    assert.equal(parseJoinRequest({ roomId: 'ABCDEF12', clientId: '../client' }), undefined);
+    assert.equal(parseJoinRequest({ roomId: 'not-a-room' }), undefined);
+    assert.equal(parseJoinRequest({ roomId: 'ABCDEF12', clientId: 'legacy-id' }), undefined);
 });
 test('controller payloads are strict and analog axes are clamped', () => {
     assert.deepEqual(parseButtonRequest({ btn: 'A', state: 1 }), { btn: 'A', state: 1 });

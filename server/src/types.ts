@@ -1,6 +1,6 @@
 export type Player = {
     id: number;           // 1-4
-    clientId: string;     // UUID from client
+    reconnectKey: string; // SHA-256 key for a server-issued reconnect capability
     socketId?: string;    // Current socket ID (can change on reconnect)
     connected: boolean;
     lastPing: number;

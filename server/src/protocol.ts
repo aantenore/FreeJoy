@@ -23,7 +23,6 @@ export type SupportedButton = typeof SUPPORTED_BUTTONS[number];
 
 export type JoinRequest = {
     roomId: string;
-    clientId: string;
     deviceName?: string;
 };
 
@@ -41,22 +40,22 @@ export type AnalogRequest = {
 export type OperationError = {
     code: string;
     message: string;
+    retryAfterMs?: number;
 };
 
 const BUTTON_SET = new Set<string>(SUPPORTED_BUTTONS);
-const CLIENT_ID_PATTERN = /^pro-[a-f0-9]{32}$/u;
 const ROOM_ID_PATTERN = /^[A-F0-9]{8}$/u;
 const CONTROL_CHARACTERS = /[\u0000-\u001F\u007F]/gu;
 
 export function parseJoinRequest(value: unknown): JoinRequest | undefined {
     if (!isRecord(value)) return undefined;
+    if (Object.keys(value).some(key => key !== 'roomId' && key !== 'deviceName')) return undefined;
     const roomId = typeof value.roomId === 'string' ? value.roomId.trim().toUpperCase() : '';
-    const clientId = typeof value.clientId === 'string' ? value.clientId.trim() : '';
-    if (!ROOM_ID_PATTERN.test(roomId) || !CLIENT_ID_PATTERN.test(clientId)) return undefined;
+    if (!ROOM_ID_PATTERN.test(roomId)) return undefined;
 
     const deviceName = sanitizeDeviceName(value.deviceName);
     if (value.deviceName !== undefined && deviceName === undefined) return undefined;
-    return deviceName ? { roomId, clientId, deviceName } : { roomId, clientId };
+    return deviceName ? { roomId, deviceName } : { roomId };
 }
 
 export function parseButtonRequest(value: unknown): ButtonRequest | undefined {

@@ -5,6 +5,8 @@ export type CapabilityConfig = {
     joinToken: string;
 };
 
+export type CapabilityTokenFactory = () => string;
+
 const MINIMUM_CONFIGURED_TOKEN_LENGTH = 16;
 const CONFIGURED_TOKEN_PATTERN = /^[A-Za-z0-9_-]+$/u;
 
@@ -34,14 +36,43 @@ function readOrCreateToken(name: string, environment: NodeJS.ProcessEnv): string
 }
 
 export class CapabilityAuthority {
-    constructor(private readonly capabilities: CapabilityConfig) { }
+    private readonly hostToken: string;
+    private joinToken: string;
+
+    constructor(
+        capabilities: CapabilityConfig,
+        private readonly createToken: CapabilityTokenFactory = () => randomBytes(32).toString('base64url')
+    ) {
+        this.hostToken = capabilities.hostToken;
+        this.joinToken = capabilities.joinToken;
+    }
 
     public permitsHost(candidate: unknown): boolean {
-        return secureTokenEqual(candidate, this.capabilities.hostToken);
+        return secureTokenEqual(candidate, this.hostToken);
     }
 
     public permitsJoin(candidate: unknown): boolean {
-        return secureTokenEqual(candidate, this.capabilities.joinToken);
+        return secureTokenEqual(candidate, this.joinToken);
+    }
+
+    public getJoinToken(): string {
+        return this.joinToken;
+    }
+
+    public rotateJoinToken(): void {
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+            const candidate = this.createToken();
+            if (
+                candidate.length >= MINIMUM_CONFIGURED_TOKEN_LENGTH &&
+                CONFIGURED_TOKEN_PATTERN.test(candidate) &&
+                !secureTokenEqual(candidate, this.hostToken) &&
+                !secureTokenEqual(candidate, this.joinToken)
+            ) {
+                this.joinToken = candidate;
+                return;
+            }
+        }
+        throw new Error('Unable to rotate the controller join capability safely');
     }
 }
 

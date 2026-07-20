@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import { createServer, Server as HttpServer } from 'node:http';
-import test from 'node:test';
 import { AddressInfo } from 'node:net';
+import test from 'node:test';
 import { Server as SocketServer } from 'socket.io';
 import { io as createSocket, Socket } from 'socket.io-client';
 import { CapabilityAuthority } from '../src/authority';
 import { IPlugin } from '../src/plugins/IPlugin';
+import { ReconnectCapabilityAuthority } from '../src/reconnectAuthority';
 import { RoomManager } from '../src/roomManager';
 import { WSHandler } from '../src/wsHandler';
 
 const HOST_TOKEN = 'host-capability-123456';
 const JOIN_TOKEN = 'join-capability-123456';
-const CLIENT_ID = `pro-${'a'.repeat(32)}`;
-const OTHER_CLIENT_ID = `pro-${'b'.repeat(32)}`;
+const ROTATED_JOIN_TOKEN = 'rotated-controller-capability-123456';
 
 class FakePlugin implements IPlugin {
     public readonly name = 'Fake';
@@ -35,48 +35,108 @@ class FakePlugin implements IPlugin {
     }
 }
 
+type HarnessOptions = {
+    maximumInputEventsPerSecond?: number;
+    now?: () => number;
+    staleTimeoutMs?: number;
+    cleanupIntervalMs?: number;
+};
+
 type Harness = {
     room: RoomManager;
     plugin: FakePlugin;
     handler: WSHandler;
+    authority: CapabilityAuthority;
     io: SocketServer;
     http: HttpServer;
     url: string;
     sockets: Socket[];
 };
 
-async function createHarness(
-    maximumInputEventsPerSecond = 120,
-    now: () => number = Date.now,
-    staleTimeoutMs = 30_000
-): Promise<Harness> {
+type JoinedPayload = {
+    playerId: number;
+    reconnectToken: string;
+    leaseMs: number;
+};
+
+async function createHarness(options: HarnessOptions = {}): Promise<Harness> {
     const http = createServer();
     const io = new SocketServer(http);
-    const room = new RoomManager(4, { roomId: 'ABCDEF12', serverIp: '127.0.0.1', now });
+    const reconnectTokens = ['a', 'b', 'c', 'd'].map(character => character.repeat(43));
+    const room = new RoomManager(4, {
+        roomId: 'ABCDEF12',
+        serverIp: '127.0.0.1',
+        now: options.now,
+        reconnectAuthority: new ReconnectCapabilityAuthority(() => {
+            const token = reconnectTokens.shift();
+            if (!token) throw new Error('Test reconnect capabilities exhausted');
+            return token;
+        })
+    });
     const plugin = new FakePlugin();
-    const authority = new CapabilityAuthority({ hostToken: HOST_TOKEN, joinToken: JOIN_TOKEN });
+    const authority = new CapabilityAuthority(
+        { hostToken: HOST_TOKEN, joinToken: JOIN_TOKEN },
+        () => ROTATED_JOIN_TOKEN
+    );
     const handler = new WSHandler(io, room, plugin, authority, {
-        cleanupIntervalMs: 60_000,
-        staleTimeoutMs,
-        maximumInputEventsPerSecond,
-        now
+        cleanupIntervalMs: options.cleanupIntervalMs ?? 2_000,
+        staleTimeoutMs: options.staleTimeoutMs ?? 30_000,
+        maximumInputEventsPerSecond: options.maximumInputEventsPerSecond ?? 120,
+        now: options.now
     });
     handler.init();
     await new Promise<void>(resolve => http.listen(0, '127.0.0.1', resolve));
     const port = (http.address() as AddressInfo).port;
-    return { room, plugin, handler, io, http, url: `http://127.0.0.1:${port}`, sockets: [] };
+    return { room, plugin, handler, authority, io, http, url: `http://127.0.0.1:${port}`, sockets: [] };
 }
 
-async function connect(harness: Harness, role: 'host' | 'player', token: string): Promise<Socket> {
+function createClient(
+    harness: Harness,
+    role: 'host' | 'player',
+    token: string,
+    capability?: 'join' | 'reconnect'
+): Socket {
     const socket = createSocket(harness.url, {
-        auth: { role, token },
+        auth: { role, token, capability },
+        autoConnect: false,
         forceNew: true,
         reconnection: false,
         transports: ['websocket']
     });
     harness.sockets.push(socket);
-    await waitForEvent(socket, 'connect');
     return socket;
+}
+
+async function connect(
+    harness: Harness,
+    role: 'host' | 'player',
+    token: string,
+    capability?: 'join' | 'reconnect'
+): Promise<Socket> {
+    const socket = createClient(harness, role, token, capability);
+    const connected = waitForEvent(socket, 'connect');
+    socket.connect();
+    await connected;
+    return socket;
+}
+
+async function connectExpectingError(
+    harness: Harness,
+    token: string,
+    capability: 'join' | 'reconnect'
+): Promise<{ socket: Socket; error: { code: string; message: string } }> {
+    const socket = createClient(harness, 'player', token, capability);
+    const connected = waitForEvent(socket, 'connect');
+    const rejected = waitForEvent<{ code: string; message: string }>(socket, 'operation_error');
+    socket.connect();
+    await connected;
+    return { socket, error: await rejected };
+}
+
+async function join(socket: Socket, deviceName?: string): Promise<JoinedPayload> {
+    const joined = waitForEvent<JoinedPayload>(socket, 'joined');
+    socket.emit('join', { roomId: 'ABCDEF12', deviceName });
+    return joined;
 }
 
 async function closeHarness(harness: Harness): Promise<void> {
@@ -113,11 +173,10 @@ function waitUntil(predicate: () => boolean, timeoutMs = 2_000): Promise<void> {
 test('wrong room identifiers fail without disclosing the active room', async () => {
     const harness = await createHarness();
     try {
-        const player = await connect(harness, 'player', JOIN_TOKEN);
+        const player = await connect(harness, 'player', JOIN_TOKEN, 'join');
         const rejected = waitForEvent<{ code: string; message: string }>(player, 'operation_error');
-        player.emit('join', { roomId: 'DEADBEEF', clientId: CLIENT_ID, deviceName: 'Phone' });
+        player.emit('join', { roomId: 'DEADBEEF' });
         const error = await rejected;
-
         assert.equal(error.code, 'ROOM_CLOSED');
         assert.equal(JSON.stringify(error).includes(harness.room.roomId), false);
         assert.deepEqual(harness.room.getPlayersList(), []);
@@ -126,95 +185,104 @@ test('wrong room identifiers fail without disclosing the active room', async () 
     }
 });
 
-test('only the host can remove a player and controller release is exactly once', async () => {
+test('a server-issued reconnect capability blocks takeover until stale cleanup', async () => {
+    let now = 1_000;
+    const harness = await createHarness({ now: () => now, staleTimeoutMs: 30_000, cleanupIntervalMs: 2_000 });
+    try {
+        const owner = await connect(harness, 'player', JOIN_TOKEN, 'join');
+        const ownerSession = await join(owner);
+
+        const contender = await connect(harness, 'player', ownerSession.reconnectToken, 'reconnect');
+        const busy = waitForEvent<{ code: string; retryAfterMs: number }>(contender, 'operation_error');
+        contender.emit('join', { roomId: 'ABCDEF12' });
+        const busyError = await busy;
+        assert.equal(busyError.code, 'IDENTITY_BUSY');
+        assert.equal(busyError.retryAfterMs, 32_000);
+        assert.equal(harness.room.getPlayerBySocket(owner.id)?.id, 1);
+
+        const stale = waitForEvent<{ code: string }>(owner, 'operation_error');
+        now += 30_001;
+        harness.handler.cleanupStalePlayers();
+        owner.emit('input', { btn: 'A', state: 1 });
+        assert.equal((await stale).code, 'STALE_SESSION');
+        await waitUntil(() => harness.plugin.released.length === 1);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        assert.deepEqual(harness.plugin.buttons, []);
+        assert.equal(harness.room.getPlayersList()[0]?.connected, false);
+
+        const rejoined = waitForEvent<JoinedPayload>(contender, 'joined');
+        contender.emit('join', { roomId: 'ABCDEF12' });
+        assert.equal((await rejoined).playerId, 1);
+        assert.deepEqual(harness.plugin.initialized, [1, 1]);
+    } finally {
+        await closeHarness(harness);
+    }
+});
+
+test('kick revokes both the player lease and the QR capability while refreshing the host', async () => {
     const harness = await createHarness();
     try {
         const host = await connect(harness, 'host', HOST_TOKEN);
-        const player = await connect(harness, 'player', JOIN_TOKEN);
-        const joined = waitForEvent<{ playerId: number }>(player, 'joined');
-        player.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID, deviceName: 'Phone' });
-        assert.equal((await joined).playerId, 1);
-        assert.deepEqual(harness.plugin.initialized, [1]);
-
-        const forbidden = waitForEvent<{ code: string }>(player, 'operation_error');
-        player.emit('kick_player', { playerId: 1 });
-        assert.equal((await forbidden).code, 'HOST_AUTH_REQUIRED');
-        assert.equal(harness.room.getPlayersList().length, 1);
+        const player = await connect(harness, 'player', JOIN_TOKEN, 'join');
+        const session = await join(player, 'Phone');
+        const waitingWithOldQr = await connect(harness, 'player', JOIN_TOKEN, 'join');
 
         const kicked = waitForEvent(player, 'kicked');
+        const rotated = waitForEvent(host, 'join_capability_rotated');
         host.emit('kick_player', { playerId: 1 });
         await kicked;
-        await waitUntil(() => harness.plugin.released.length === 1);
+        await rotated;
+        assert.equal(harness.authority.permitsJoin(JOIN_TOKEN), false);
+        assert.equal(harness.room.permitsReconnect(session.reconnectToken), false);
 
-        const rejoin = await connect(harness, 'player', JOIN_TOKEN);
-        const denied = waitForEvent<{ code: string }>(rejoin, 'operation_error');
-        rejoin.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        assert.equal((await denied).code, 'JOIN_DENIED');
+        const preauthorizedDenied = waitForEvent<{ code: string }>(
+            waitingWithOldQr,
+            'operation_error'
+        );
+        waitingWithOldQr.emit('join', { roomId: 'ABCDEF12' });
+        assert.equal((await preauthorizedDenied).code, 'AUTH_REQUIRED');
 
-        harness.handler.shutdown();
-        assert.deepEqual(harness.plugin.released, [1]);
+        const oldLease = await connectExpectingError(
+            harness,
+            session.reconnectToken,
+            'reconnect'
+        );
+        assert.equal(oldLease.error.code, 'AUTH_REQUIRED');
+        const oldQr = await connectExpectingError(harness, JOIN_TOKEN, 'join');
+        assert.equal(oldQr.error.code, 'AUTH_REQUIRED');
+
+        const replacement = await connect(harness, 'player', ROTATED_JOIN_TOKEN, 'join');
+        assert.equal((await join(replacement)).playerId, 1);
     } finally {
         await closeHarness(harness);
     }
 });
 
-test('a second socket cannot take over a live controller identity', async () => {
+test('host operations stay unavailable to controller sockets', async () => {
     const harness = await createHarness();
     try {
-        const owner = await connect(harness, 'player', JOIN_TOKEN);
-        const ownerJoined = waitForEvent(owner, 'joined');
-        owner.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        await ownerJoined;
-
-        const contender = await connect(harness, 'player', JOIN_TOKEN);
-        const denied = waitForEvent<{ code: string }>(contender, 'operation_error');
-        contender.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        assert.equal((await denied).code, 'IDENTITY_BUSY');
-
-        owner.emit('input', { btn: 'A', state: 1 });
-        await waitUntil(() => harness.plugin.buttons.length === 1);
-        contender.emit('input', { btn: 'B', state: 1 });
-        await new Promise(resolve => setTimeout(resolve, 50));
-        assert.deepEqual(harness.plugin.buttons, [
-            { player: 1, button: 'A', pressed: true }
-        ]);
-
-        owner.disconnect();
-        await waitUntil(() => harness.plugin.released.length === 1);
-        const contenderJoined = waitForEvent<{ playerId: number }>(contender, 'joined');
-        contender.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        assert.equal((await contenderJoined).playerId, 1);
-        contender.emit('input', { btn: 'B', state: 1 });
-        await waitUntil(() => harness.plugin.buttons.length === 2);
-        assert.deepEqual(harness.plugin.buttons[1], {
-            player: 1,
-            button: 'B',
-            pressed: true
-        });
+        const player = await connect(harness, 'player', JOIN_TOKEN, 'join');
+        await join(player);
+        const forbidden = waitForEvent<{ code: string }>(player, 'operation_error');
+        player.emit('reset_room');
+        assert.equal((await forbidden).code, 'HOST_AUTH_REQUIRED');
+        assert.equal(harness.room.getPlayersList().length, 1);
     } finally {
         await closeHarness(harness);
     }
 });
 
-test('disconnect, stale cleanup, reconnect, and shutdown preserve one release per activation', async () => {
+test('disconnect, reconnect, and shutdown release exactly once per activation', async () => {
     const harness = await createHarness();
     try {
-        const first = await connect(harness, 'player', JOIN_TOKEN);
-        const firstJoined = waitForEvent(first, 'joined');
-        first.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        await firstJoined;
+        const first = await connect(harness, 'player', JOIN_TOKEN, 'join');
+        const session = await join(first);
         first.disconnect();
         await waitUntil(() => harness.plugin.released.length === 1);
 
-        harness.handler.cleanupStalePlayers();
-        assert.deepEqual(harness.plugin.released, [1]);
-
-        const second = await connect(harness, 'player', JOIN_TOKEN);
-        const secondJoined = waitForEvent(second, 'joined');
-        second.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        await secondJoined;
+        const second = await connect(harness, 'player', session.reconnectToken, 'reconnect');
+        await join(second);
         harness.handler.shutdown();
-
         assert.deepEqual(harness.plugin.initialized, [1, 1]);
         assert.deepEqual(harness.plugin.released, [1, 1]);
     } finally {
@@ -222,42 +290,17 @@ test('disconnect, stale cleanup, reconnect, and shutdown preserve one release pe
     }
 });
 
-test('an expired connected controller lease is released and disconnected', async () => {
-    let now = 1_000;
-    const harness = await createHarness(120, () => now, 30_000);
-    try {
-        const player = await connect(harness, 'player', JOIN_TOKEN);
-        const joined = waitForEvent(player, 'joined');
-        player.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        await joined;
-
-        const expired = waitForEvent<{ code: string }>(player, 'operation_error');
-        const disconnected = waitForEvent(player, 'disconnect');
-        now += 30_001;
-        harness.handler.cleanupStalePlayers();
-
-        assert.equal((await expired).code, 'STALE_SESSION');
-        await disconnected;
-        assert.deepEqual(harness.plugin.released, [1]);
-        assert.deepEqual(harness.room.getPlayersList(), []);
-    } finally {
-        await closeHarness(harness);
-    }
-});
-
-test('public state is redacted and valid analog input is clamped before the plugin', async () => {
+test('public state is redacted and analog input is clamped before the plugin', async () => {
     const harness = await createHarness();
     try {
         const host = await connect(harness, 'host', HOST_TOKEN);
-        const player = await connect(harness, 'player', JOIN_TOKEN);
-        const joined = waitForEvent(player, 'joined');
-        player.emit('join', { roomId: 'ABCDEF12', clientId: OTHER_CLIENT_ID, deviceName: 'Phone' });
-        await joined;
+        const player = await connect(harness, 'player', JOIN_TOKEN, 'join');
+        const session = await join(player, 'Phone');
 
         const playersList = waitForEvent(host, 'players_list');
         host.emit('get_players');
         const serialized = JSON.stringify(await playersList);
-        assert.equal(serialized.includes(OTHER_CLIENT_ID), false);
+        assert.equal(serialized.includes(session.reconnectToken), false);
         assert.equal(serialized.includes(player.id ?? ''), false);
 
         player.emit('analog', { stick: 'left', x: 12, y: -12 });
@@ -273,63 +316,43 @@ test('public state is redacted and valid analog input is clamped before the plug
     }
 });
 
-test('exceeding the input ceiling releases and disconnects the controller', async () => {
-    const harness = await createHarness(1);
+test('rate overflow neutralizes safely and its budget survives reconnects', async () => {
+    let now = 1_000;
+    const harness = await createHarness({
+        maximumInputEventsPerSecond: 1,
+        now: () => now
+    });
     try {
-        const player = await connect(harness, 'player', JOIN_TOKEN);
-        const joined = waitForEvent(player, 'joined');
-        player.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        await joined;
-
-        const rejected = waitForEvent<{ code: string }>(player, 'operation_error');
-        const disconnected = waitForEvent(player, 'disconnect');
-        player.emit('input', { btn: 'A', state: 1 });
-        player.emit('input', { btn: 'A', state: 0 });
-        assert.equal((await rejected).code, 'RATE_LIMITED');
-        await disconnected;
-        await waitUntil(() => harness.plugin.released.length === 1);
-        assert.deepEqual(harness.plugin.buttons, [
-            { player: 1, button: 'A', pressed: true }
-        ]);
-        assert.deepEqual(harness.plugin.released, [1]);
-        assert.deepEqual(harness.room.getPlayersList(), []);
-
-        const rejoin = await connect(harness, 'player', JOIN_TOKEN);
-        const rejoined = waitForEvent<{ playerId: number }>(rejoin, 'joined');
-        rejoin.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        assert.equal((await rejoined).playerId, 1);
-    } finally {
-        await closeHarness(harness);
-    }
-});
-
-test('the per-controller input ceiling survives a voluntary reconnect', async () => {
-    const harness = await createHarness(1);
-    try {
-        const first = await connect(harness, 'player', JOIN_TOKEN);
-        const firstJoined = waitForEvent(first, 'joined');
-        first.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        await firstJoined;
+        const first = await connect(harness, 'player', JOIN_TOKEN, 'join');
+        const session = await join(first);
+        const firstRejected = waitForEvent<{ code: string }>(first, 'operation_error');
         first.emit('input', { btn: 'A', state: 1 });
-        await waitUntil(() => harness.plugin.buttons.length === 1);
-        first.disconnect();
+        first.emit('input', { btn: 'A', state: 0 });
+        assert.equal((await firstRejected).code, 'RATE_LIMITED');
         await waitUntil(() => harness.plugin.released.length === 1);
-
-        const second = await connect(harness, 'player', JOIN_TOKEN);
-        const secondJoined = waitForEvent(second, 'joined');
-        second.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        await secondJoined;
-
-        const rejected = waitForEvent<{ code: string }>(second, 'operation_error');
-        const disconnected = waitForEvent(second, 'disconnect');
-        second.emit('input', { btn: 'A', state: 0 });
-        assert.equal((await rejected).code, 'RATE_LIMITED');
-        await disconnected;
-        await waitUntil(() => harness.plugin.released.length === 2);
         assert.deepEqual(harness.plugin.buttons, [
             { player: 1, button: 'A', pressed: true }
         ]);
-        assert.deepEqual(harness.room.getPlayersList(), []);
+        assert.equal(harness.room.getPlayersList()[0]?.connected, false);
+
+        const second = await connect(harness, 'player', session.reconnectToken, 'reconnect');
+        await join(second);
+        const secondRejected = waitForEvent<{ code: string }>(second, 'operation_error');
+        second.emit('analog', { stick: 'left', x: 0, y: 0 });
+        assert.equal((await secondRejected).code, 'RATE_LIMITED');
+        await waitUntil(() => harness.plugin.released.length === 2);
+        assert.deepEqual(harness.plugin.analog, []);
+
+        now += 1_000;
+        const third = await connect(harness, 'player', session.reconnectToken, 'reconnect');
+        await join(third);
+        third.emit('input', { btn: 'A', state: 0 });
+        await waitUntil(() => harness.plugin.buttons.length === 2);
+        assert.deepEqual(harness.plugin.buttons[1], {
+            player: 1,
+            button: 'A',
+            pressed: false
+        });
     } finally {
         await closeHarness(harness);
     }

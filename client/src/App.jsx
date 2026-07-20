@@ -5,6 +5,14 @@ import { InstallBanner } from './components/InstallBanner';
 import io from 'socket.io-client';
 import './App.css';
 
+async function fetchHostRoom(hostToken) {
+    const response = await fetch('/api/room', {
+        headers: { Authorization: `Bearer ${hostToken}` }
+    });
+    if (!response.ok) throw new Error(`Host authorization failed (${response.status})`);
+    return response.json();
+}
+
 /**
  * Main App Component
  */
@@ -46,13 +54,7 @@ function App() {
     // HOST MODE FETCH
     useEffect(() => {
         if (mode === 'host' && hostToken) {
-            fetch('/api/room', {
-                headers: { Authorization: `Bearer ${hostToken}` }
-            })
-                .then(res => {
-                    if (!res.ok) throw new Error(`Host authorization failed (${res.status})`);
-                    return res.json();
-                })
+            fetchHostRoom(hostToken)
                 .then(data => setHostRoom(data))
                 .catch(err => {
                     console.error("Failed to fetch room info", err);
@@ -71,6 +73,14 @@ function App() {
             });
             socket.on('operation_error', (error) => {
                 console.error('Host operation rejected', error);
+            });
+            socket.on('join_capability_rotated', () => {
+                fetchHostRoom(hostToken)
+                    .then(data => setHostRoom(data))
+                    .catch(error => {
+                        console.error('Failed to refresh the controller QR code', error);
+                        setMode('error');
+                    });
             });
             socket.emit('get_players'); // Request initial list
             return () => socket.disconnect();
@@ -185,7 +195,7 @@ function App() {
                 <div className="relative z-10 mt-12 flex flex-col items-center gap-4">
                     <button
                         onClick={() => {
-                            if (confirm('Reset room? All players will be disconnected and the ban list will be cleared.')) {
+                            if (confirm('Reset room? All controller leases will be disconnected and cleared.')) {
                                 if (hostSocket) {
                                     hostSocket.emit('reset_room');
                                     hostSocket.on('room_reset_complete', () => {

@@ -2,21 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { clsx } from 'clsx';
 import { Joystick } from 'react-joystick-component';
 import io, { Socket } from 'socket.io-client';
-
-const CLIENT_ID_PATTERN = /^pro-[a-f0-9]{32}$/u;
-const MAXIMUM_IDENTITY_BUSY_RETRIES = 4;
-const IDENTITY_BUSY_RETRY_DELAY_MS = 250;
-
-function loadOrCreateClientId(): string {
-    const stored = localStorage.getItem('clientId');
-    if (stored && CLIENT_ID_PATTERN.test(stored)) return stored;
-
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    const clientId = `pro-${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`;
-    localStorage.setItem('clientId', clientId);
-    return clientId;
-}
+import {
+    JoinRetryScheduler,
+    clearReconnectCapability,
+    heartbeatIntervalFor,
+    loadReconnectCapability,
+    saveReconnectCapability
+} from '../controllerSession';
 
 export function ProController({ roomId, joinToken }: { roomId: string; joinToken: string }) {
     const [status, setStatus] = useState('connecting');
@@ -28,27 +20,45 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
     // === SOCKET CONNECTION LOGIC ===
     useEffect(() => {
         const url = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
-
-        // Single socket connection with auto-assigned player ID
+        let reconnectToken = loadReconnectCapability(roomId);
+        let usingReconnectCapability = reconnectToken !== undefined;
         const s = io(url, {
             reconnectionAttempts: 5,
-            auth: { role: 'player', token: joinToken }
+            auth: {
+                role: 'player',
+                capability: usingReconnectCapability ? 'reconnect' : 'join',
+                token: reconnectToken ?? joinToken
+            }
         });
         let joinRequest: {
             roomId: string;
-            clientId: string;
             deviceName: string;
         } | undefined;
-        let identityBusyRetries = 0;
-        let joinRetryTimer: number | undefined;
-
-        const clearJoinRetry = () => {
-            if (joinRetryTimer !== undefined) window.clearTimeout(joinRetryTimer);
-            joinRetryTimer = undefined;
-        };
+        let heartbeatTimer: number | undefined;
 
         const sendJoinRequest = () => {
             if (s.connected && joinRequest) s.emit('join', joinRequest);
+        };
+        const retryScheduler = new JoinRetryScheduler(sendJoinRequest);
+        const stopHeartbeat = () => {
+            if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer);
+            heartbeatTimer = undefined;
+        };
+        const startHeartbeat = (leaseMs: number) => {
+            stopHeartbeat();
+            heartbeatTimer = window.setInterval(() => {
+                if (s.connected) s.emit('ping');
+            }, heartbeatIntervalFor(leaseMs));
+        };
+        const reconnectWithJoinCapability = () => {
+            reconnectToken = undefined;
+            usingReconnectCapability = false;
+            clearReconnectCapability();
+            s.auth = { role: 'player', capability: 'join', token: joinToken };
+            window.setTimeout(() => {
+                if (s.connected) s.disconnect();
+                s.connect();
+            }, 50);
         };
 
         s.on('connect', () => {
@@ -56,7 +66,6 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
             operationFailed.current = false;
             setPlayerId(null);
             setStatus('connecting');
-            const clientId = loadOrCreateClientId();
 
             // Get device name from user agent
             const getDeviceName = () => {
@@ -82,47 +91,56 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
 
             console.log(`[Client] Device name: "${deviceName}"`);
 
-            identityBusyRetries = 0;
-            clearJoinRetry();
-            joinRequest = { roomId, clientId, deviceName };
+            retryScheduler.cancel();
+            joinRequest = { roomId, deviceName };
             sendJoinRequest();
         });
 
-        s.on('joined', (data: { playerId: number }) => {
+        s.on('joined', (data: { playerId: number; reconnectToken: string; leaseMs: number }) => {
             console.log("Pro Controller: Joined as Player", data.playerId);
-            identityBusyRetries = 0;
-            clearJoinRetry();
+            if (!saveReconnectCapability(roomId, data.reconnectToken)) {
+                operationFailed.current = true;
+                setErrorMessage('The server returned an invalid reconnect capability.');
+                setStatus('error');
+                s.disconnect();
+                return;
+            }
+            reconnectToken = data.reconnectToken;
+            usingReconnectCapability = true;
+            s.auth = { role: 'player', capability: 'reconnect', token: reconnectToken };
+            retryScheduler.cancel();
+            startHeartbeat(data.leaseMs);
             setPlayerId(data.playerId);
             setStatus('connected');
         });
 
         s.on('kicked', (data: { reason: string }) => {
+            operationFailed.current = true;
+            clearReconnectCapability();
             alert(`You were kicked: ${data.reason}`);
             window.location.href = '/'; // Redirect to home instead of reload
         });
 
         s.on('disconnect', (reason) => {
-            clearJoinRetry();
+            retryScheduler.cancel();
+            stopHeartbeat();
             setPlayerId(null);
             if (operationFailed.current) return;
             setStatus(reason === 'io server disconnect' ? 'disconnected' : 'connecting');
         });
-        s.on('operation_error', (err: { code?: string; message?: string }) => {
+        s.on('operation_error', (err: { code?: string; message?: string; retryAfterMs?: number }) => {
             console.error("Connection error:", err);
             if (err.code === 'ROOM_FULL') {
                 alert('Room is full! Maximum 4 players.');
                 window.location.href = '/';
-            } else if (
-                err.code === 'IDENTITY_BUSY' &&
-                identityBusyRetries < MAXIMUM_IDENTITY_BUSY_RETRIES
-            ) {
-                identityBusyRetries += 1;
+            } else if (err.code === 'IDENTITY_BUSY') {
                 setStatus('connecting');
-                clearJoinRetry();
-                joinRetryTimer = window.setTimeout(
-                    sendJoinRequest,
-                    IDENTITY_BUSY_RETRY_DELAY_MS * identityBusyRetries
-                );
+                retryScheduler.schedule(err.retryAfterMs);
+            } else if (
+                usingReconnectCapability &&
+                (err.code === 'AUTH_REQUIRED' || err.code === 'RECONNECT_EXPIRED')
+            ) {
+                reconnectWithJoinCapability();
             } else {
                 operationFailed.current = true;
                 setPlayerId(null);
@@ -132,13 +150,10 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
         });
 
         socket.current = s;
-        const heartbeat = window.setInterval(() => {
-            if (s.connected) s.emit('ping');
-        }, 10_000);
 
         return () => {
-            window.clearInterval(heartbeat);
-            clearJoinRetry();
+            retryScheduler.cancel();
+            stopHeartbeat();
             s.disconnect();
         };
     }, [joinToken, roomId]);

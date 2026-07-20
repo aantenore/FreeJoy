@@ -1,6 +1,5 @@
 import { Server, Socket } from 'socket.io';
 import { CapabilityAuthority } from './authority';
-import { RoomManager } from './roomManager';
 import { IPlugin } from './plugins/IPlugin';
 import {
     FixedWindowRateLimiter,
@@ -10,6 +9,7 @@ import {
     parseJoinRequest,
     parsePlayerId
 } from './protocol';
+import { ControllerSession, RoomManager } from './roomManager';
 
 export type WSHandlerOptions = {
     cleanupIntervalMs?: number;
@@ -18,14 +18,15 @@ export type WSHandlerOptions = {
     now?: () => number;
 };
 
+type PlayerAdmission =
+    | { kind: 'join'; token: string }
+    | { kind: 'reconnect'; token: string };
+
 const HOST_SOCKET_ROOM = 'freejoy:authorized-hosts';
 
 export class WSHandler {
     private readonly activePlayers = new Set<number>();
-    private readonly inputLimiters = new Map<
-        string,
-        { limiter: FixedWindowRateLimiter; lastSeenAt: number }
-    >();
+    private readonly inputLimiters = new Map<string, FixedWindowRateLimiter>();
     private readonly cleanupIntervalMs: number;
     private readonly staleTimeoutMs: number;
     private readonly maximumInputEventsPerSecond: number;
@@ -49,6 +50,7 @@ export class WSHandler {
         this.io.on('connection', (socket: Socket) => {
             const role = socket.handshake.auth?.role;
             const token = socket.handshake.auth?.token;
+            const capability = socket.handshake.auth?.capability;
             console.log(`[WS] New ${String(role)} connection: ${socket.id}`);
 
             if (role === 'host' && this.authority.permitsHost(token)) {
@@ -59,8 +61,9 @@ export class WSHandler {
                 return;
             }
 
-            if (role === 'player' && this.authority.permitsJoin(token)) {
-                this.registerPlayerHandlers(socket);
+            const admission = this.authorizePlayer(capability, token);
+            if (role === 'player' && admission) {
+                this.registerPlayerHandlers(socket, admission);
                 return;
             }
 
@@ -72,22 +75,23 @@ export class WSHandler {
     }
 
     public cleanupStalePlayers(): void {
-        for (const player of this.room.cleanupStale(this.staleTimeoutMs)) {
+        const stale = this.room.cleanupStale(this.staleTimeoutMs);
+        for (const player of stale.expired) {
             this.releasePlayer(player.id);
-            this.inputLimiters.delete(player.clientId);
-            if (player.socketId) {
-                const socket = this.io.sockets.sockets.get(player.socketId);
-                if (socket) {
-                    this.emitError(
-                        socket,
-                        'STALE_SESSION',
-                        'The controller lease expired and was released.'
-                    );
-                    setImmediate(() => socket.disconnect(true));
-                }
-            }
+            if (!player.socketId) continue;
+            const socket = this.io.sockets.sockets.get(player.socketId);
+            if (!socket) continue;
+            this.emitError(
+                socket,
+                'STALE_SESSION',
+                'The controller lease expired and was released.'
+            );
+            setImmediate(() => socket.disconnect(true));
         }
-        this.pruneInputLimiters();
+        for (const player of stale.removed) {
+            this.releasePlayer(player.id);
+            this.inputLimiters.delete(player.reconnectKey);
+        }
         this.broadcastState();
         this.broadcastPlayerList();
     }
@@ -97,10 +101,26 @@ export class WSHandler {
             clearInterval(this.cleanupTimer);
             this.cleanupTimer = undefined;
         }
-        for (const player of this.room.getPlayers()) {
-            this.releasePlayer(player.id);
-        }
+        for (const player of this.room.getPlayers()) this.releasePlayer(player.id);
         this.inputLimiters.clear();
+    }
+
+    private authorizePlayer(capability: unknown, token: unknown): PlayerAdmission | undefined {
+        if (
+            (capability === undefined || capability === 'join') &&
+            typeof token === 'string' &&
+            this.authority.permitsJoin(token)
+        ) {
+            return { kind: 'join', token };
+        }
+        if (
+            capability === 'reconnect' &&
+            typeof token === 'string' &&
+            this.room.permitsReconnect(token)
+        ) {
+            return { kind: 'reconnect', token };
+        }
+        return undefined;
     }
 
     private registerHostHandlers(socket: Socket): void {
@@ -118,11 +138,13 @@ export class WSHandler {
             const kicked = this.room.kickPlayer(playerId);
             if (kicked) {
                 this.releasePlayer(kicked.id);
-                this.inputLimiters.delete(kicked.clientId);
+                this.inputLimiters.delete(kicked.reconnectKey);
                 if (kicked.connected && kicked.socketId) {
                     this.io.to(kicked.socketId).emit('kicked', { reason: 'Host kicked you' });
                     this.io.sockets.sockets.get(kicked.socketId)?.disconnect(true);
                 }
+                this.authority.rotateJoinToken();
+                this.io.to(HOST_SOCKET_ROOM).emit('join_capability_rotated');
             }
             this.broadcastState();
             this.broadcastPlayerList();
@@ -145,18 +167,18 @@ export class WSHandler {
         });
     }
 
-    private registerPlayerHandlers(socket: Socket): void {
+    private registerPlayerHandlers(socket: Socket, admission: PlayerAdmission): void {
         let inputRevoked = false;
 
         const permitsInput = (): boolean => {
             if (inputRevoked) return false;
             const player = this.room.getPlayerBySocket(socket.id);
-            if (!player) return false;
-            if (this.inputLimiterFor(player.clientId).allow()) return true;
+            if (!player?.connected || !this.activePlayers.has(player.id)) return false;
+            if (this.inputLimiterFor(player.reconnectKey).allow()) return true;
 
             inputRevoked = true;
-            const removed = this.room.removePlayer(player.id);
-            if (removed) this.releasePlayer(removed.id);
+            const disconnected = this.room.disconnect(socket.id);
+            if (disconnected) this.releasePlayer(disconnected.id);
             this.emitError(
                 socket,
                 'RATE_LIMITED',
@@ -191,34 +213,17 @@ export class WSHandler {
                 return;
             }
 
-            const joinBlockReason = this.room.getJoinBlockReason(request.clientId);
-            if (joinBlockReason) {
-                const errorByReason = {
-                    kicked: ['JOIN_DENIED', 'The player could not join this room.'],
-                    identity_busy: [
-                        'IDENTITY_BUSY',
-                        'The previous controller connection is still closing. Retry shortly.'
-                    ],
-                    full: ['ROOM_FULL', 'The player could not join this room.']
-                } as const;
-                const [code, message] = errorByReason[joinBlockReason];
-                this.emitError(socket, code, message);
-                return;
-            }
+            const session = this.openControllerSession(admission, socket, request.deviceName);
+            if (!session) return;
 
-            const player = this.room.join(request.clientId, socket.id, request.deviceName);
-            if (!player) {
-                const code = this.room.isFull() ? 'ROOM_FULL' : 'JOIN_DENIED';
-                this.emitError(socket, code, 'The player could not join this room.');
-                return;
-            }
-
-            this.activatePlayer(player.id);
-            const profile = this.plugin.getProfile ? this.plugin.getProfile(player.id) : null;
+            this.activatePlayer(session.player.id);
+            const profile = this.plugin.getProfile ? this.plugin.getProfile(session.player.id) : null;
             socket.emit('joined', {
-                playerId: player.id,
+                playerId: session.player.id,
                 roomId: this.room.roomId,
-                profile
+                profile,
+                reconnectToken: session.reconnectToken,
+                leaseMs: this.staleTimeoutMs
             });
             this.broadcastState();
             this.broadcastPlayerList();
@@ -263,33 +268,74 @@ export class WSHandler {
         });
     }
 
+    private openControllerSession(
+        admission: PlayerAdmission,
+        socket: Socket,
+        deviceName?: string
+    ): ControllerSession | undefined {
+        if (admission.kind === 'join') {
+            if (!this.authority.permitsJoin(admission.token)) {
+                this.emitError(
+                    socket,
+                    'AUTH_REQUIRED',
+                    'The controller join capability has expired. Scan the current QR code again.'
+                );
+                setImmediate(() => socket.disconnect(true));
+                return undefined;
+            }
+            const session = this.room.createSession(socket.id, deviceName);
+            if (!session) {
+                this.emitError(socket, 'ROOM_FULL', 'The player could not join this room.');
+            }
+            return session ?? undefined;
+        }
+
+        const result = this.room.reconnect(admission.token, socket.id, deviceName);
+        if (result.status === 'joined') return result.session;
+        if (result.status === 'busy') {
+            const retryAfterMs = Math.max(
+                100,
+                Math.ceil(
+                    result.player.lastPing +
+                    this.staleTimeoutMs -
+                    this.now() +
+                    this.cleanupIntervalMs
+                )
+            );
+            this.emitError(
+                socket,
+                'IDENTITY_BUSY',
+                'The previous controller connection still owns this lease.',
+                { retryAfterMs }
+            );
+            return undefined;
+        }
+
+        this.emitError(
+            socket,
+            'RECONNECT_EXPIRED',
+            'The reconnect capability has expired. Scan the current QR code again.'
+        );
+        setImmediate(() => socket.disconnect(true));
+        return undefined;
+    }
+
     private activatePlayer(playerId: number): void {
         if (this.activePlayers.has(playerId)) return;
         this.plugin.initPlayer(playerId);
         this.activePlayers.add(playerId);
     }
 
-    private inputLimiterFor(clientId: string): FixedWindowRateLimiter {
-        const existing = this.inputLimiters.get(clientId);
-        if (existing) {
-            existing.lastSeenAt = this.now();
-            return existing.limiter;
-        }
-
+    private inputLimiterFor(reconnectKey: string): FixedWindowRateLimiter {
+        const existing = this.inputLimiters.get(reconnectKey);
+        if (existing) return existing;
         const limiter = new FixedWindowRateLimiter(
             this.maximumInputEventsPerSecond,
             1_000,
             this.now
         );
-        this.inputLimiters.set(clientId, { limiter, lastSeenAt: this.now() });
+        this.inputLimiters.set(reconnectKey, limiter);
         return limiter;
-    }
-
-    private pruneInputLimiters(): void {
-        const expiresBefore = this.now() - Math.max(2_000, this.staleTimeoutMs);
-        for (const [clientId, state] of this.inputLimiters.entries()) {
-            if (state.lastSeenAt < expiresBefore) this.inputLimiters.delete(clientId);
-        }
     }
 
     private releasePlayer(playerId: number): void {
@@ -302,8 +348,13 @@ export class WSHandler {
         setImmediate(() => socket.disconnect(true));
     }
 
-    private emitError(socket: Socket, code: string, message: string): void {
-        const payload: OperationError = { code, message };
+    private emitError(
+        socket: Socket,
+        code: string,
+        message: string,
+        details: Pick<OperationError, 'retryAfterMs'> = {}
+    ): void {
+        const payload: OperationError = { code, message, ...details };
         socket.emit('operation_error', payload);
     }
 
