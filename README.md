@@ -68,8 +68,8 @@ FreeJoy is a full-stack controller solution that turns any mobile device into a 
 1.  **Clone the repository**:
     
     ```bash
-    git clone <repo-url>
-    cd ryujinx-gamepad
+    git clone https://github.com/aantenore/FreeJoy.git
+    cd FreeJoy
     ```
     
 2.  **Install Node.js dependencies**:
@@ -77,11 +77,11 @@ FreeJoy is a full-stack controller solution that turns any mobile device into a 
     ```bash
     # Server
     cd server
-    npm install
+    npm ci
     
     # Client
     cd ../client
-    npm install
+    npm ci
     ```
     
 3.  **Install Python dependencies**:
@@ -240,7 +240,7 @@ this.pythonProcess = spawn('python', [...], {
 ### Project Structure
 
 ```
-ryujinx-gamepad/
+FreeJoy/
 ├── client/                 # React frontend (Vite)
 │   ├── src/
 │   │   ├── components/
