@@ -9,7 +9,7 @@ The server reads `FREEJOY_HOST_TOKEN` and `FREEJOY_JOIN_TOKEN`, or generates ind
 - host: `/#host=<host capability>`;
 - controller: `/pad#room=<room ID>&join=<join capability>`.
 
-Fragments are available to the application but are not included in the initial HTTP request. Each Socket.IO connection sends `{ role, token }` in handshake `auth`.
+Fragments are available to the application but are not included in the initial HTTP request. Process logs never contain either capability. Each new controller sends `{ role: "player", capability: "join", token }` in handshake `auth`; after assignment it uses the opaque reconnect capability issued by the server instead.
 
 ## HTTP
 
@@ -29,34 +29,40 @@ Requires `Authorization: Bearer <host capability>` and responds with `Cache-Cont
 }
 ```
 
-`clientId`, `socketId`, and activity timestamps are internal and never appear in this response. Missing or invalid authority returns HTTP 403 with `HOST_AUTH_REQUIRED`.
+Reconnect capability digests, `socketId`, and activity timestamps are internal and never appear in this response. Missing or invalid authority returns HTTP 403 with `HOST_AUTH_REQUIRED`.
 
 ## Controller socket
 
-Handshake auth:
+First-join handshake auth:
 
 ```json
-{ "role": "player", "token": "<join capability>" }
+{ "role": "player", "capability": "join", "token": "<join capability>" }
+```
+
+Reconnect handshake auth:
+
+```json
+{ "role": "player", "capability": "reconnect", "token": "<server-issued capability>" }
 ```
 
 ### Client events
 
-- `join { roomId, clientId, deviceName? }`
+- `join { roomId, deviceName? }`
 - `input { btn, state }`
 - `analog { stick, x, y }`
 - `ping`
 
-The room ID is eight hexadecimal characters. The bundled client creates a persistent, high-entropy `pro-` identifier with 128 random bits; a second socket cannot take over that identifier while its owner is connected. Device names contain at most 80 display characters. Buttons are allow-listed, state is exactly `0` or `1`, analog values must be finite and are clamped to `[-1, 1]`. Input and analog events share a configurable per-socket rate ceiling. Exceeding it releases the controller, removes its session, and disconnects the socket instead of dropping a potentially safety-critical release event.
+The room ID is eight hexadecimal characters. Device names contain at most 80 display characters. The server issues a 256-bit reconnect capability, stores only its digest, and never exposes it to the host or another controller. Buttons are allow-listed, state is exactly `0` or `1`, analog values must be finite and are clamped to `[-1, 1]`. Input and analog events share a configurable per-controller rate ceiling whose state survives reconnects. Exceeding it neutralizes and disconnects the controller instead of dropping a potentially safety-critical release event.
 
 ### Server events
 
-- `joined { playerId, roomId, profile }`
+- `joined { playerId, roomId, profile, reconnectToken, leaseMs }`
 - `pong`
 - `kicked { reason }`
 - `operation_error { code, message }`
 
 An invalid room produces `ROOM_CLOSED` without returning or redirecting to the active room identifier.
-The bundled controller renews its lease every ten seconds. A controller that stops renewing for thirty seconds is neutralized and disconnected even if its transport has not reported a clean close.
+The bundled controller derives its heartbeat from `leaseMs`. `IDENTITY_BUSY` includes an authoritative `retryAfterMs`; the client keeps retrying through the entire old lease. An unresponsive live controller is neutralized first and its reconnect record is retained for one additional grace period before removal.
 
 ## Host socket
 
@@ -76,12 +82,13 @@ Handshake auth:
 
 - `players_list` with redacted public players;
 - `room_state` with `players` and `maxPlayers` only;
+- `join_capability_rotated` when the host must refresh its QR code;
 - `room_reset_complete`;
 - `operation_error { code, message }`.
 
 Player sockets that attempt host operations receive `HOST_AUTH_REQUIRED`. Invalid handshake capabilities receive `AUTH_REQUIRED` and are disconnected.
 
-`kick_player` blocks the bundled client's stored controller identity until `reset_room`. It is session moderation, not revocation of the shared join capability: an operator who needs to revoke the QR code must change `FREEJOY_JOIN_TOKEN` and restart the server.
+`kick_player` revokes the player's reconnect capability and rotates the shared join capability. The authorized host receives `join_capability_rotated` and refreshes the QR code; existing players continue to use their individual reconnect capabilities.
 
 ## Lifecycle guarantee
 

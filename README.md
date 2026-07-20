@@ -37,10 +37,10 @@ FreeJoy is a full-stack controller solution that turns any mobile device into a 
     *   Real-time connected players list on host screen
     *   Custom device nicknames (e.g. "iPhone di Antonio")
     *   Kick individual players (online or offline)
-    *   Reset room to clear all players and ban list
+    *   Reset room to clear all controller leases
 *   **Persistent Sessions**: Auto-reconnect logic restores player slots if the browser refreshes or device sleeps.
 *   **Auto-Assignment**: Players are automatically assigned slots 1-4 in order of connection.
-*   **Kick Protection**: Kicked players cannot rejoin until room is reset.
+*   **Kick Protection**: A kick revokes that controller lease and rotates the QR capability without interrupting other players.
 *   **Premium UI**: 
     *   Animated splash screen during connection
     *   Visual LED player indicator (P1-P4)
@@ -107,16 +107,23 @@ This script:
 **Option 2: Manual Start**
 
 ```bash
-# Terminal 1: Start server
+# Configure distinct capabilities before starting the server.
+export FREEJOY_HOST_TOKEN=<at-least-16-base64url-characters>
+export FREEJOY_JOIN_TOKEN=<different-at-least-16-base64url-characters>
+
 cd server
 npm run dev
 
-# Open the capability-bearing Host URL printed by the server.
+# Open http://localhost:3000/#host=<FREEJOY_HOST_TOKEN>.
+# Capability URLs are intentionally omitted from process logs.
 ```
+
+On PowerShell, set the same values with `$env:FREEJOY_HOST_TOKEN = "..."` and
+`$env:FREEJOY_JOIN_TOKEN = "..."`. The launcher creates these values for you.
 
 ### Connecting Controllers
 
-1.  **Host Screen**: Open the `Host URL` printed by the server to see the QR code
+1.  **Host Screen**: Use the launcher or your configured host capability to open the QR screen
 2.  **Mobile Devices**: Scan the QR code with your phone/tablet camera
 3.  **Auto-Assignment**: Players are automatically assigned slots P1-P4
 4.  **Start Playing**: The virtual Xbox 360 controller is ready in Ryujinx!
@@ -168,7 +175,7 @@ The Pro Controller layout maps to Xbox 360 as follows:
     - Socket.IO sends to server
     - Node.js forwards to Python via stdin
     - Python controls virtual Xbox 360 gamepad
-4.  **Reconnection**: UUID in localStorage allows slot persistence
+4.  **Reconnection**: An opaque server-issued capability in localStorage restores the controller lease
 
 ### Key Design Decisions
 
@@ -178,8 +185,9 @@ The Pro Controller layout maps to Xbox 360 as follows:
 *   **Fail-Safe Lifecycle**: Disconnect, kick, reset, timeout, and shutdown neutralize each active virtual controller once
 *   **Stateless Sessions**: No database - all state in memory for minimal latency
 *   **Device Nicknames**: Stored in browser localStorage for personalization
-*   **Controller Lease**: A ten-second heartbeat makes an unresponsive controller fail safe after thirty seconds
-*   **Kick Semantics**: Blocks the stored controller identity until reset; rotate the shared join capability when actual QR-code revocation is required
+*   **Controller Lease**: A server-directed heartbeat and retry window preserve safe reconnection without allowing socket takeover
+*   **Kick Semantics**: Revokes the player lease and rotates the QR capability while preserving other active players
+*   **Log Hygiene**: Host, QR, and reconnect capabilities are never written to process logs
 
 ## 🔧 Configuration
 
@@ -190,8 +198,10 @@ The Pro Controller layout maps to Xbox 360 as follows:
 | `FREEJOY_HOST_TOKEN` | random at startup | Host API and administration capability; minimum 16 base64url characters |
 | `FREEJOY_JOIN_TOKEN` | random at startup | Controller join capability; minimum 16 base64url characters |
 | `FREEJOY_INPUT_EVENTS_PER_SECOND` | `120` | Per-controller input ceiling, from 10 to 1000; the current window survives reconnects, and overflow safely releases without creating a host ban |
+| `FREEJOY_CONTROLLER_LEASE_MS` | `30000` | Live and disconnected controller lease window, from 5 seconds to 5 minutes |
+| `FREEJOY_CLEANUP_INTERVAL_MS` | up to `2000` | Lease cleanup cadence, from 250 ms up to the configured lease |
 
-Capabilities are carried in URL fragments, so browsers do not send them in the initial HTTP request. Host and join values must differ. A restart rotates generated capabilities and invalidates old QR codes; deployments that configure a fixed join value must change it explicitly when revoking a QR code.
+Capabilities are carried in URL fragments, so browsers do not send them in the initial HTTP request. Host and join values must differ. Kicking a controller rotates the in-memory join capability and refreshes the host QR code. A restart rotates generated capabilities and invalidates previous controller leases.
 
 ### Python Path
 
@@ -216,7 +226,7 @@ this.pythonProcess = spawn('python', [...], {
 
 *   **QR Code Not Scanning**: Ensure phone and PC are on same network
 *   **"Room Full" Error**: Maximum 4 players - use Reset Room button
-*   **Kicked Player Rejoining**: Room reset clears ban list
+*   **Kicked Player Rejoining**: Use the refreshed host QR; the previous player and QR capabilities are revoked
 *   **Reconnection Fails**: Clear browser data and scan QR again
 
 ### Input Lag
