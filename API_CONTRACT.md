@@ -4,7 +4,7 @@ FreeJoy exposes a same-origin HTTP endpoint and a Socket.IO protocol. The host a
 
 ## Capability transport
 
-The server reads `FREEJOY_HOST_TOKEN` and `FREEJOY_JOIN_TOKEN`, or generates independent random values at startup. The bundled application receives them in URL fragments:
+The server reads `FREEJOY_HOST_TOKEN` and `FREEJOY_JOIN_TOKEN`, or generates independent random values at startup. Configured values must be different. The bundled application receives them in URL fragments:
 
 - host: `/#host=<host capability>`;
 - controller: `/pad#room=<room ID>&join=<join capability>`.
@@ -46,7 +46,7 @@ Handshake auth:
 - `analog { stick, x, y }`
 - `ping`
 
-The room ID is eight hexadecimal characters. Client IDs contain at most 128 safe identifier characters; device names contain at most 80 display characters. Buttons are allow-listed, state is exactly `0` or `1`, analog values must be finite and are clamped to `[-1, 1]`. Input and analog events share a configurable per-socket rate ceiling.
+The room ID is eight hexadecimal characters. The bundled client creates a persistent, high-entropy `pro-` identifier with 128 random bits; a second socket cannot take over that identifier while its owner is connected. Device names contain at most 80 display characters. Buttons are allow-listed, state is exactly `0` or `1`, analog values must be finite and are clamped to `[-1, 1]`. Input and analog events share a configurable per-socket rate ceiling. Exceeding it releases the controller, removes its session, and disconnects the socket instead of dropping a potentially safety-critical release event.
 
 ### Server events
 
@@ -56,6 +56,7 @@ The room ID is eight hexadecimal characters. Client IDs contain at most 128 safe
 - `operation_error { code, message }`
 
 An invalid room produces `ROOM_CLOSED` without returning or redirecting to the active room identifier.
+The bundled controller renews its lease every ten seconds. A controller that stops renewing for thirty seconds is neutralized and disconnected even if its transport has not reported a clean close.
 
 ## Host socket
 
@@ -79,6 +80,8 @@ Handshake auth:
 - `operation_error { code, message }`.
 
 Player sockets that attempt host operations receive `HOST_AUTH_REQUIRED`. Invalid handshake capabilities receive `AUTH_REQUIRED` and are disconnected.
+
+`kick_player` blocks the bundled client's stored controller identity until `reset_room`. It is session moderation, not revocation of the shared join capability: an operator who needs to revoke the QR code must change `FREEJOY_JOIN_TOKEN` and restart the server.
 
 ## Lifecycle guarantee
 

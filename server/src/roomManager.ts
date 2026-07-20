@@ -48,6 +48,10 @@ export class RoomManager {
         // 1. Check if I already have ANY slot (Reconnect)
         for (const [slot, player] of this.players.entries()) {
             if (player.clientId === clientId) {
+                if (player.connected && player.socketId !== socketId) {
+                    console.log(`[Room] Rejected concurrent reconnect for Player ${slot}`);
+                    return null;
+                }
                 player.socketId = socketId;
                 player.connected = true;
                 player.lastPing = this.now();
@@ -81,6 +85,7 @@ export class RoomManager {
         for (const player of this.players.values()) {
             if (player.socketId === socketId) {
                 player.connected = false;
+                player.lastPing = this.now();
                 console.log(`[Room] Player ${player.id} Disconnected`);
                 return player;
             }
@@ -101,7 +106,7 @@ export class RoomManager {
         const removed: Player[] = [];
         const now = this.now();
         for (const [slot, player] of this.players.entries()) {
-            if (!player.connected && (now - player.lastPing > timeoutMs)) {
+            if (now - player.lastPing > timeoutMs) {
                 console.log(`[Room] purging stale player ${slot}`);
                 this.players.delete(slot);
                 removed.push(player);

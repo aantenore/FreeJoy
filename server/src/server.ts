@@ -48,7 +48,11 @@ export async function bootstrap(): Promise<void> {
     app.use(cors());
     app.use(express.json({ limit: '16kb' }));
 
-    const clientPath = path.join(__dirname, '../../client/dist_build');
+    const packagedClientPath = path.join(__dirname, 'public');
+    const developmentClientPath = path.join(__dirname, '../../client/dist_build');
+    const clientPath = fs.existsSync(path.join(packagedClientPath, 'index.html'))
+        ? packagedClientPath
+        : developmentClientPath;
     const clientIndexPath = path.join(clientPath, 'index.html');
     const clientIndexAvailable = fs.existsSync(clientIndexPath);
     const clientFallbackLimiter = rateLimit({

@@ -44,6 +44,9 @@ jobs:
       - name: Test server
         run: npm test
         working-directory: server
+      - name: Smoke-test server package
+        run: npm run package:smoke
+        working-directory: server
       - name: Audit server
         run: npm audit --audit-level=moderate
         working-directory: server

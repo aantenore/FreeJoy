@@ -8,15 +8,17 @@ import {
     parsePlayerId
 } from '../src/protocol';
 
+const CLIENT_ID = `pro-${'a'.repeat(32)}`;
+
 test('join validation normalizes bounded identifiers without accepting control characters', () => {
     assert.deepEqual(
-        parseJoinRequest({ roomId: 'abcdef12', clientId: 'pro-123', deviceName: '  Phone\n' }),
-        { roomId: 'ABCDEF12', clientId: 'pro-123', deviceName: 'Phone' }
+        parseJoinRequest({ roomId: 'abcdef12', clientId: CLIENT_ID, deviceName: '  Phone\n' }),
+        { roomId: 'ABCDEF12', clientId: CLIENT_ID, deviceName: 'Phone' }
     );
-    assert.equal(parseJoinRequest({ roomId: 'not-a-room', clientId: 'pro-123' }), undefined);
+    assert.equal(parseJoinRequest({ roomId: 'not-a-room', clientId: CLIENT_ID }), undefined);
+    assert.equal(parseJoinRequest({ roomId: 'ABCDEF12', clientId: 'pro-123' }), undefined);
     assert.equal(parseJoinRequest({ roomId: 'ABCDEF12', clientId: '../client' }), undefined);
 });
-
 test('controller payloads are strict and analog axes are clamped', () => {
     assert.deepEqual(parseButtonRequest({ btn: 'A', state: 1 }), { btn: 'A', state: 1 });
     assert.equal(parseButtonRequest({ btn: 'Power', state: 1 }), undefined);
@@ -39,4 +41,3 @@ test('the input rate limiter resets only after its configured window', () => {
     now += 1_000;
     assert.equal(limiter.allow(), true);
 });
-

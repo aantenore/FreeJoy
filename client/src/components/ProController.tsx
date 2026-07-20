@@ -3,6 +3,19 @@ import { clsx } from 'clsx';
 import { Joystick } from 'react-joystick-component';
 import io, { Socket } from 'socket.io-client';
 
+const CLIENT_ID_PATTERN = /^pro-[a-f0-9]{32}$/u;
+
+function loadOrCreateClientId(): string {
+    const stored = localStorage.getItem('clientId');
+    if (stored && CLIENT_ID_PATTERN.test(stored)) return stored;
+
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const clientId = `pro-${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`;
+    localStorage.setItem('clientId', clientId);
+    return clientId;
+}
+
 export function ProController({ roomId, joinToken }: { roomId: string; joinToken: string }) {
     const [status, setStatus] = useState('connecting');
     const [playerId, setPlayerId] = useState<number | null>(null);
@@ -20,9 +33,7 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
 
         s.on('connect', () => {
             console.log("Pro Controller: Socket Connected");
-            // Generate unique client ID for this device
-            const clientId = localStorage.getItem('clientId') || `pro-${Date.now()}`;
-            localStorage.setItem('clientId', clientId);
+            const clientId = loadOrCreateClientId();
 
             // Get device name from user agent
             const getDeviceName = () => {
@@ -58,9 +69,6 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
         });
 
         s.on('kicked', (data: { reason: string }) => {
-            // Clear stored IDs so player doesn't auto-rejoin
-            localStorage.removeItem('clientId');
-            localStorage.removeItem('deviceNickname');
             alert(`You were kicked: ${data.reason}`);
             window.location.href = '/'; // Redirect to home instead of reload
         });
@@ -77,8 +85,12 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
         });
 
         socket.current = s;
+        const heartbeat = window.setInterval(() => {
+            if (s.connected) s.emit('ping');
+        }, 10_000);
 
         return () => {
+            window.clearInterval(heartbeat);
             s.disconnect();
         };
     }, [joinToken, roomId]);
@@ -253,6 +265,7 @@ function ShoulderBtn({ label, onInput }: { label: string; onInput: (btn: string,
             onPointerDown={() => onInput(label, 1)}
             onPointerUp={() => onInput(label, 0)}
             onPointerLeave={() => onInput(label, 0)}
+            onPointerCancel={() => onInput(label, 0)}
         >
             {label}
         </button>
@@ -266,6 +279,7 @@ function RoundBtn({ label, icon, onInput }: { label: string; icon: string; onInp
             onPointerDown={() => onInput(label, 1)}
             onPointerUp={() => onInput(label, 0)}
             onPointerLeave={() => onInput(label, 0)}
+            onPointerCancel={() => onInput(label, 0)}
         >
             {icon}
         </button>
@@ -295,6 +309,7 @@ function DPadBtn({ icon, label, onInput }: { icon: string; label: string; onInpu
             onPointerDown={() => onInput(label, 1)}
             onPointerUp={() => onInput(label, 0)}
             onPointerLeave={() => onInput(label, 0)}
+            onPointerCancel={() => onInput(label, 0)}
         >
             {icon}
         </button>
@@ -348,6 +363,11 @@ function ABXYBtn({ label, color, onInput }: { label: string; color: string; onIn
                 onInput(label, 0);
             }}
             onPointerLeave={(e) => {
+                (e.target as HTMLButtonElement).style.boxShadow = `0 0 12px ${glowColor}, 0 4px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.2)`;
+                (e.target as HTMLButtonElement).style.transform = 'translateY(0)';
+                onInput(label, 0);
+            }}
+            onPointerCancel={(e) => {
                 (e.target as HTMLButtonElement).style.boxShadow = `0 0 12px ${glowColor}, 0 4px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.2)`;
                 (e.target as HTMLButtonElement).style.transform = 'translateY(0)';
                 onInput(label, 0);

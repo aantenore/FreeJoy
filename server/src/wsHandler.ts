@@ -67,6 +67,17 @@ export class WSHandler {
     public cleanupStalePlayers(): void {
         for (const player of this.room.cleanupStale(this.staleTimeoutMs)) {
             this.releasePlayer(player.id);
+            if (player.socketId) {
+                const socket = this.io.sockets.sockets.get(player.socketId);
+                if (socket) {
+                    this.emitError(
+                        socket,
+                        'STALE_SESSION',
+                        'The controller lease expired and was released.'
+                    );
+                    setImmediate(() => socket.disconnect(true));
+                }
+            }
         }
         this.broadcastState();
         this.broadcastPlayerList();
@@ -124,6 +135,28 @@ export class WSHandler {
 
     private registerPlayerHandlers(socket: Socket): void {
         const inputLimiter = new FixedWindowRateLimiter(this.maximumInputEventsPerSecond);
+        let inputRevoked = false;
+
+        const permitsInput = (): boolean => {
+            if (inputRevoked) return false;
+            if (inputLimiter.allow()) return true;
+
+            inputRevoked = true;
+            const player = this.room.getPlayerBySocket(socket.id);
+            if (player) {
+                const removed = this.room.kickPlayer(player.id);
+                if (removed) this.releasePlayer(removed.id);
+            }
+            this.emitError(
+                socket,
+                'RATE_LIMITED',
+                'The controller input ceiling was exceeded and the controller was released.'
+            );
+            this.broadcastState();
+            this.broadcastPlayerList();
+            setImmediate(() => socket.disconnect(true));
+            return false;
+        };
 
         const rejectHostOperation = () => {
             this.emitError(socket, 'HOST_AUTH_REQUIRED', 'This operation requires the host capability.');
@@ -167,7 +200,7 @@ export class WSHandler {
         });
 
         socket.on('input', (data: unknown) => {
-            if (!inputLimiter.allow()) return;
+            if (!permitsInput()) return;
             const request = parseButtonRequest(data);
             if (!request) {
                 this.emitError(socket, 'INVALID_INPUT', 'The controller input is invalid.');
@@ -175,11 +208,12 @@ export class WSHandler {
             }
             const player = this.room.getPlayerBySocket(socket.id);
             if (!player) return;
+            this.room.handlePing(socket.id);
             this.plugin.sendButtonPress(player.id, request.btn, request.state === 1);
         });
 
         socket.on('analog', (data: unknown) => {
-            if (!inputLimiter.allow()) return;
+            if (!permitsInput()) return;
             const request = parseAnalogRequest(data);
             if (!request) {
                 this.emitError(socket, 'INVALID_INPUT', 'The controller input is invalid.');
@@ -187,6 +221,7 @@ export class WSHandler {
             }
             const player = this.room.getPlayerBySocket(socket.id);
             if (!player) return;
+            this.room.handlePing(socket.id);
             this.plugin.sendAnalogInput(player.id, request.stick, request.x, request.y);
         });
 

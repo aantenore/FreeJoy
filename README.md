@@ -178,7 +178,8 @@ The Pro Controller layout maps to Xbox 360 as follows:
 *   **Fail-Safe Lifecycle**: Disconnect, kick, reset, timeout, and shutdown neutralize each active virtual controller once
 *   **Stateless Sessions**: No database - all state in memory for minimal latency
 *   **Device Nicknames**: Stored in browser localStorage for personalization
-*   **Kick Ban List**: Tracks kicked clientIds to prevent immediate rejoin
+*   **Controller Lease**: A ten-second heartbeat makes an unresponsive controller fail safe after thirty seconds
+*   **Kick Semantics**: Blocks the stored controller identity until reset; rotate the shared join capability when actual QR-code revocation is required
 
 ## 🔧 Configuration
 
@@ -190,7 +191,7 @@ The Pro Controller layout maps to Xbox 360 as follows:
 | `FREEJOY_JOIN_TOKEN` | random at startup | Controller join capability; minimum 16 characters |
 | `FREEJOY_INPUT_EVENTS_PER_SECOND` | `120` | Per-controller input ceiling, from 10 to 1000 |
 
-Capabilities are carried in URL fragments, so browsers do not send them in the initial HTTP request. A restart rotates generated capabilities and invalidates old QR codes.
+Capabilities are carried in URL fragments, so browsers do not send them in the initial HTTP request. Host and join values must differ. A restart rotates generated capabilities and invalidates old QR codes; deployments that configure a fixed join value must change it explicitly when revoking a QR code.
 
 ### Python Path
 

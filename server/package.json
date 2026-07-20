@@ -8,10 +8,11 @@
     },
     "scripts": {
         "start": "tsx src/server.ts",
-        "build": "tsc && node scripts/copy-python-runtime.mjs",
+        "build": "tsc && node scripts/copy-runtime-assets.mjs",
         "dev": "tsx watch src/server.ts",
         "prod": "node dist/server.js",
         "prepack": "npm run build",
+        "package:smoke": "node scripts/package-smoke.mjs",
         "test": "tsx --test test/authority.test.ts test/protocol.test.ts test/roomManager.test.ts test/wsHandler.integration.test.ts"
     },
     "dependencies": {

@@ -44,7 +44,7 @@ export type OperationError = {
 };
 
 const BUTTON_SET = new Set<string>(SUPPORTED_BUTTONS);
-const CLIENT_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/u;
+const CLIENT_ID_PATTERN = /^pro-[a-f0-9]{32}$/u;
 const ROOM_ID_PATTERN = /^[A-F0-9]{8}$/u;
 const CONTROL_CHARACTERS = /[\u0000-\u001F\u007F]/gu;
 

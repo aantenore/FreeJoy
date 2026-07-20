@@ -21,5 +21,11 @@ test('short configured capabilities fail closed', () => {
         () => loadCapabilityConfig({ FREEJOY_HOST_TOKEN: 'too-short' }),
         /FREEJOY_HOST_TOKEN must contain at least 16 characters/u
     );
+    assert.throws(
+        () => loadCapabilityConfig({
+            FREEJOY_HOST_TOKEN: 'shared-capability-123456',
+            FREEJOY_JOIN_TOKEN: 'shared-capability-123456'
+        }),
+        /must be different/u
+    );
 });
-

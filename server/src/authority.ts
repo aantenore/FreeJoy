@@ -10,10 +10,14 @@ const MINIMUM_CONFIGURED_TOKEN_LENGTH = 16;
 export function loadCapabilityConfig(
     environment: NodeJS.ProcessEnv = process.env
 ): CapabilityConfig {
-    return {
+    const capabilities = {
         hostToken: readOrCreateToken('FREEJOY_HOST_TOKEN', environment),
         joinToken: readOrCreateToken('FREEJOY_JOIN_TOKEN', environment)
     };
+    if (secureTokenEqual(capabilities.hostToken, capabilities.joinToken)) {
+        throw new Error('FREEJOY_HOST_TOKEN and FREEJOY_JOIN_TOKEN must be different');
+    }
+    return capabilities;
 }
 
 function readOrCreateToken(name: string, environment: NodeJS.ProcessEnv): string {
@@ -43,4 +47,3 @@ function secureTokenEqual(candidate: unknown, expected: string): boolean {
     const expectedBytes = Buffer.from(expected);
     return actualBytes.length === expectedBytes.length && timingSafeEqual(actualBytes, expectedBytes);
 }
-
