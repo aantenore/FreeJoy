@@ -6,6 +6,7 @@ export type CapabilityConfig = {
 };
 
 const MINIMUM_CONFIGURED_TOKEN_LENGTH = 16;
+const CONFIGURED_TOKEN_PATTERN = /^[A-Za-z0-9_-]+$/u;
 
 export function loadCapabilityConfig(
     environment: NodeJS.ProcessEnv = process.env
@@ -25,6 +26,9 @@ function readOrCreateToken(name: string, environment: NodeJS.ProcessEnv): string
     if (!configured) return randomBytes(32).toString('base64url');
     if (configured.length < MINIMUM_CONFIGURED_TOKEN_LENGTH) {
         throw new Error(`${name} must contain at least ${MINIMUM_CONFIGURED_TOKEN_LENGTH} characters`);
+    }
+    if (!CONFIGURED_TOKEN_PATTERN.test(configured)) {
+        throw new Error(`${name} must use base64url characters only`);
     }
     return configured;
 }

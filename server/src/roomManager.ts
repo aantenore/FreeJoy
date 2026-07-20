@@ -8,6 +8,8 @@ export type RoomManagerOptions = {
     now?: () => number;
 };
 
+export type JoinBlockReason = 'kicked' | 'identity_busy' | 'full';
+
 export class RoomManager {
     public readonly roomId: string;
     private players: Map<number, Player> = new Map(); // Slot ID (1-4) -> Player
@@ -36,6 +38,16 @@ export class RoomManager {
 
     public isFull(): boolean {
         return this.players.size >= this.maximumPlayers;
+    }
+
+    public getJoinBlockReason(clientId: string): JoinBlockReason | undefined {
+        if (this.kickedClients.has(clientId)) return 'kicked';
+        for (const player of this.players.values()) {
+            if (player.clientId === clientId) {
+                return player.connected ? 'identity_busy' : undefined;
+            }
+        }
+        return this.isFull() ? 'full' : undefined;
     }
 
     public join(clientId: string, socketId: string, deviceName?: string): Player | null {

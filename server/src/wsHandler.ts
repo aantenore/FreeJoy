@@ -191,6 +191,21 @@ export class WSHandler {
                 return;
             }
 
+            const joinBlockReason = this.room.getJoinBlockReason(request.clientId);
+            if (joinBlockReason) {
+                const errorByReason = {
+                    kicked: ['JOIN_DENIED', 'The player could not join this room.'],
+                    identity_busy: [
+                        'IDENTITY_BUSY',
+                        'The previous controller connection is still closing. Retry shortly.'
+                    ],
+                    full: ['ROOM_FULL', 'The player could not join this room.']
+                } as const;
+                const [code, message] = errorByReason[joinBlockReason];
+                this.emitError(socket, code, message);
+                return;
+            }
+
             const player = this.room.join(request.clientId, socket.id, request.deviceName);
             if (!player) {
                 const code = this.room.isFull() ? 'ROOM_FULL' : 'JOIN_DENIED';

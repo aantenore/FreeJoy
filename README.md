@@ -187,8 +187,8 @@ The Pro Controller layout maps to Xbox 360 as follows:
 | --- | --- | --- |
 | `PORT` | `3000` | HTTP and Socket.IO port |
 | `PUBLIC_HOST` | detected LAN address | Address placed in the controller QR URL |
-| `FREEJOY_HOST_TOKEN` | random at startup | Host API and administration capability; minimum 16 characters |
-| `FREEJOY_JOIN_TOKEN` | random at startup | Controller join capability; minimum 16 characters |
+| `FREEJOY_HOST_TOKEN` | random at startup | Host API and administration capability; minimum 16 base64url characters |
+| `FREEJOY_JOIN_TOKEN` | random at startup | Controller join capability; minimum 16 base64url characters |
 | `FREEJOY_INPUT_EVENTS_PER_SECOND` | `120` | Per-controller input ceiling, from 10 to 1000; the current window survives reconnects, and overflow safely releases without creating a host ban |
 
 Capabilities are carried in URL fragments, so browsers do not send them in the initial HTTP request. Host and join values must differ. A restart rotates generated capabilities and invalidates old QR codes; deployments that configure a fixed join value must change it explicitly when revoking a QR code.

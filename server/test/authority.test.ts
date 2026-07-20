@@ -16,10 +16,17 @@ test('configured host and join capabilities remain separate', () => {
     assert.equal(authority.permitsJoin(undefined), false);
 });
 
-test('short configured capabilities fail closed', () => {
+test('invalid configured capabilities fail closed', () => {
     assert.throws(
         () => loadCapabilityConfig({ FREEJOY_HOST_TOKEN: 'too-short' }),
         /FREEJOY_HOST_TOKEN must contain at least 16 characters/u
+    );
+    assert.throws(
+        () => loadCapabilityConfig({
+            FREEJOY_HOST_TOKEN: 'host token with spaces 123',
+            FREEJOY_JOIN_TOKEN: 'join-capability-123456'
+        }),
+        /FREEJOY_HOST_TOKEN must use base64url characters only/u
     );
     assert.throws(
         () => loadCapabilityConfig({

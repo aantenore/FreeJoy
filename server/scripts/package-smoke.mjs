@@ -1,19 +1,28 @@
 import { execFileSync } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const npmEntryPoint = process.env.npm_execpath;
 const executable = npmEntryPoint ? process.execPath : process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const packDirectory = await mkdtemp(join(tmpdir(), 'freejoy-package-smoke-'));
 const npmArguments = npmEntryPoint
-    ? [npmEntryPoint, 'pack', '--dry-run', '--json', '--loglevel=silent']
-    : ['pack', '--dry-run', '--json', '--loglevel=silent'];
-const output = execFileSync(executable, npmArguments, {
-    cwd: new URL('..', import.meta.url),
-    encoding: 'utf8',
-    shell: !npmEntryPoint && process.platform === 'win32'
-});
-const outputLines = output.split(/\r?\n/u);
-const resultStart = outputLines.findIndex(line => line.trim() === '[');
-if (resultStart < 0) throw new Error('npm pack did not return a JSON manifest');
-const result = JSON.parse(outputLines.slice(resultStart).join('\n'));
+    ? [npmEntryPoint, 'pack', '--json', '--loglevel=silent', '--pack-destination', packDirectory]
+    : ['pack', '--json', '--loglevel=silent', '--pack-destination', packDirectory];
+let result;
+try {
+    const output = execFileSync(executable, npmArguments, {
+        cwd: new URL('..', import.meta.url),
+        encoding: 'utf8',
+        shell: !npmEntryPoint && process.platform === 'win32'
+    });
+    const outputLines = output.split(/\r?\n/u);
+    const resultStart = outputLines.findIndex(line => line.trim() === '[');
+    if (resultStart < 0) throw new Error('npm pack did not return a JSON manifest');
+    result = JSON.parse(outputLines.slice(resultStart).join('\n'));
+} finally {
+    await rm(packDirectory, { recursive: true, force: true });
+}
 const files = new Set(result[0]?.files?.map(file => file.path));
 for (const required of [
     'dist/server.js',

@@ -4,6 +4,8 @@ import { Joystick } from 'react-joystick-component';
 import io, { Socket } from 'socket.io-client';
 
 const CLIENT_ID_PATTERN = /^pro-[a-f0-9]{32}$/u;
+const MAXIMUM_IDENTITY_BUSY_RETRIES = 4;
+const IDENTITY_BUSY_RETRY_DELAY_MS = 250;
 
 function loadOrCreateClientId(): string {
     const stored = localStorage.getItem('clientId');
@@ -32,6 +34,22 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
             reconnectionAttempts: 5,
             auth: { role: 'player', token: joinToken }
         });
+        let joinRequest: {
+            roomId: string;
+            clientId: string;
+            deviceName: string;
+        } | undefined;
+        let identityBusyRetries = 0;
+        let joinRetryTimer: number | undefined;
+
+        const clearJoinRetry = () => {
+            if (joinRetryTimer !== undefined) window.clearTimeout(joinRetryTimer);
+            joinRetryTimer = undefined;
+        };
+
+        const sendJoinRequest = () => {
+            if (s.connected && joinRequest) s.emit('join', joinRequest);
+        };
 
         s.on('connect', () => {
             console.log("Pro Controller: Socket Connected");
@@ -64,11 +82,16 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
 
             console.log(`[Client] Device name: "${deviceName}"`);
 
-            s.emit('join', { roomId, clientId, deviceName });
+            identityBusyRetries = 0;
+            clearJoinRetry();
+            joinRequest = { roomId, clientId, deviceName };
+            sendJoinRequest();
         });
 
         s.on('joined', (data: { playerId: number }) => {
             console.log("Pro Controller: Joined as Player", data.playerId);
+            identityBusyRetries = 0;
+            clearJoinRetry();
             setPlayerId(data.playerId);
             setStatus('connected');
         });
@@ -79,6 +102,7 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
         });
 
         s.on('disconnect', (reason) => {
+            clearJoinRetry();
             setPlayerId(null);
             if (operationFailed.current) return;
             setStatus(reason === 'io server disconnect' ? 'disconnected' : 'connecting');
@@ -88,6 +112,17 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
             if (err.code === 'ROOM_FULL') {
                 alert('Room is full! Maximum 4 players.');
                 window.location.href = '/';
+            } else if (
+                err.code === 'IDENTITY_BUSY' &&
+                identityBusyRetries < MAXIMUM_IDENTITY_BUSY_RETRIES
+            ) {
+                identityBusyRetries += 1;
+                setStatus('connecting');
+                clearJoinRetry();
+                joinRetryTimer = window.setTimeout(
+                    sendJoinRequest,
+                    IDENTITY_BUSY_RETRY_DELAY_MS * identityBusyRetries
+                );
             } else {
                 operationFailed.current = true;
                 setPlayerId(null);
@@ -103,6 +138,7 @@ export function ProController({ roomId, joinToken }: { roomId: string; joinToken
 
         return () => {
             window.clearInterval(heartbeat);
+            clearJoinRetry();
             s.disconnect();
         };
     }, [joinToken, roomId]);

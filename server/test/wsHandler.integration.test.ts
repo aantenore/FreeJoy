@@ -169,7 +169,7 @@ test('a second socket cannot take over a live controller identity', async () => 
         const contender = await connect(harness, 'player', JOIN_TOKEN);
         const denied = waitForEvent<{ code: string }>(contender, 'operation_error');
         contender.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
-        assert.equal((await denied).code, 'JOIN_DENIED');
+        assert.equal((await denied).code, 'IDENTITY_BUSY');
 
         owner.emit('input', { btn: 'A', state: 1 });
         await waitUntil(() => harness.plugin.buttons.length === 1);
@@ -178,6 +178,19 @@ test('a second socket cannot take over a live controller identity', async () => 
         assert.deepEqual(harness.plugin.buttons, [
             { player: 1, button: 'A', pressed: true }
         ]);
+
+        owner.disconnect();
+        await waitUntil(() => harness.plugin.released.length === 1);
+        const contenderJoined = waitForEvent<{ playerId: number }>(contender, 'joined');
+        contender.emit('join', { roomId: 'ABCDEF12', clientId: CLIENT_ID });
+        assert.equal((await contenderJoined).playerId, 1);
+        contender.emit('input', { btn: 'B', state: 1 });
+        await waitUntil(() => harness.plugin.buttons.length === 2);
+        assert.deepEqual(harness.plugin.buttons[1], {
+            player: 1,
+            button: 'B',
+            pressed: true
+        });
     } finally {
         await closeHarness(harness);
     }
