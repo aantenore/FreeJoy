@@ -1,291 +1,85 @@
+# FreeJoy runtime contract
 
-**Parameters**:
-- `clientId` (string, required): Unique client identifier (persisted in localStorage)
-- `reconnect` (boolean, optional): Whether this is a reconnection attempt
+FreeJoy exposes a same-origin HTTP endpoint and a Socket.IO protocol. The host and controllers use separate bearer capabilities; neither role inherits the other role's authority.
 
-**Response**: Server emits `assigned` event
+## Capability transport
 
----
+The server reads `FREEJOY_HOST_TOKEN` and `FREEJOY_JOIN_TOKEN`, or generates independent random values at startup. The bundled application receives them in URL fragments:
 
-#### Send Input
+- host: `/#host=<host capability>`;
+- controller: `/pad#room=<room ID>&join=<join capability>`.
+
+Fragments are available to the application but are not included in the initial HTTP request. Each Socket.IO connection sends `{ role, token }` in handshake `auth`.
+
+## HTTP
+
+### `GET /api/room`
+
+Requires `Authorization: Bearer <host capability>` and responds with `Cache-Control: no-store`.
+
 ```json
 {
-  "type": "input",
-  "btn": "A",
-  "state": 1
-}
-```
-
-**Description**: Send controller input to server.
-
-**Parameters**:
-- `btn` (string, required): Button name
-  - D-Pad: `Up`, `Down`, `Left`, `Right`
-  - Action: `A`, `B`, `X`, `Y`
-  - Shoulder: `L`, `R`, `ZL`, `ZR`
-  - System: `Start`, `Select`
-- `state` (number, required): Button state
-  - `1` = pressed
-  - `0` = released
-
----
-
-#### Ping
-```json
-{
-  "type": "ping"
-}
-```
-
-**Description**: Health check ping to keep connection alive.
-
-**Response**: Server emits `pong` event
-
----
-
-### Server → Client
-
-#### Player Assigned
-```json
-{
-  "type": "assigned",
-  "playerId": 1,
-  "clientId": "uuid-v4",
-  "roomId": "abc123"
-}
-```
-
-**Description**: Confirms player assignment after joining.
-
-**Parameters**:
-- `playerId` (number): Assigned player number (1-4)
-- `clientId` (string): Client's unique identifier
-- `roomId` (string): Room identifier
-
----
-
-#### Player Update
-```json
-{
-  "type": "playerUpdate",
+  "roomId": "ABCDEF12",
+  "serverIp": "192.0.2.10",
+  "joinUrl": "http://192.0.2.10:3000/pad#room=ABCDEF12&join=...",
+  "maxPlayers": 4,
   "players": [
-    {
-      "playerId": 1,
-      "clientId": "uuid-v4",
-      "connected": true,
-      "joinedAt": 1234567890
-    }
+    { "playerId": 1, "connected": true, "deviceName": "Phone" }
   ]
 }
 ```
 
-**Description**: Broadcast when players join/leave/reconnect.
+`clientId`, `socketId`, and activity timestamps are internal and never appear in this response. Missing or invalid authority returns HTTP 403 with `HOST_AUTH_REQUIRED`.
 
-**Parameters**:
-- `players` (array): List of all players in room
+## Controller socket
 
----
-
-#### Pong
-```json
-{
-  "type": "pong"
-}
-```
-
-**Description**: Response to ping event.
-
----
-
-#### Game Started
-```json
-{
-  "type": "gameStarted"
-}
-```
-
-**Description**: Broadcast when game starts.
-
----
-
-#### Game Stopped
-```json
-{
-  "type": "gameStopped"
-}
-```
-
-**Description**: Broadcast when game stops.
-
----
-
-#### Error
-```json
-{
-  "type": "error",
-  "message": "Room is full (max 4 players)"
-}
-```
-
-**Description**: Error message from server.
-
----
-
-## REST API
-
-### GET /api/room
-
-Get current room status.
-
-**Response**:
-```json
-{
-  "roomId": "abc123",
-  "gameStarted": false,
-  "playerCount": 2,
-  "connectedCount": 2,
-  "players": [...]
-
-**Response**:
-```json
-{
-  "success": true
-}
-```
-
----
-
-### POST /api/stop
-
-Stop the game.
-
-**Response**:
-```json
-{
-  "success": true
-}
-```
-
----
-
-### GET /api/plugins
-
-List available plugins.
-
-**Response**:
-{
-  "plugins": [
-    { "name": "ryujinx", "active": true }
-  ],
-  "active": {
-    "name": "ryujinx",
-    "version": "1.0.0",
-    "description": "Ryujinx emulator integration"
-  }
-}
-```
-
----
-
-### POST /api/plugin/switch
-
-Switch active plugin.
-
-**Request**:
-```json
-{
-  "plugin": "ryujinx",
-  "config": {
-    "keyBindings": {
-      "A": "x",
-      "B": "z"
-    }
-  }
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "plugin": {
-    "name": "ryujinx",
-    "version": "1.0.0",
-    "description": "Ryujinx emulator integration"
-  }
-}
-```
-
----
-
-## Plugin Configuration
-
-Default Ryujinx key bindings:
+Handshake auth:
 
 ```json
-{
-  "activePlugin": "ryujinx",
-  "plugins": {
-    "ryujinx": {
-      "enabled": true,
-      "keyBindings": {
-        "A": "x",
-        "B": "z",
-        "X": "s",
-        "Y": "a",
-        "L": "q",
-        "R": "w",
-        "ZL": "1",
-        "ZR": "2",
-        "Start": "return",
-        "Select": "shift",
-        "Up": "up",
-        "Down": "down",
-        "Left": "left",
-        "Right": "right"
-      }
-    }
-  }
-}
+{ "role": "player", "token": "<join capability>" }
 ```
 
----
+### Client events
 
-## Error Codes
+- `join { roomId, clientId, deviceName? }`
+- `input { btn, state }`
+- `analog { stick, x, y }`
+- `ping`
 
-| Message | Cause | Solution |
-|---------|-------|----------|
-| `clientId is required` | Missing clientId in join event | Include clientId in request |
-| `Room is full (max 4 players)` | All 4 player slots occupied | Wait for a player to leave |
-| `Plugin "X" not found` | Invalid plugin name | Use valid plugin name |
+The room ID is eight hexadecimal characters. Client IDs contain at most 128 safe identifier characters; device names contain at most 80 display characters. Buttons are allow-listed, state is exactly `0` or `1`, analog values must be finite and are clamped to `[-1, 1]`. Input and analog events share a configurable per-socket rate ceiling.
 
----
+### Server events
 
-## Connection Flow
+- `joined { playerId, roomId, profile }`
+- `pong`
+- `kicked { reason }`
+- `operation_error { code, message }`
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Server
-    participant Plugin
+An invalid room produces `ROOM_CLOSED` without returning or redirecting to the active room identifier.
 
-    Client->>Server: Connect (WebSocket)
-    Server->>Client: connect event
-    Client->>Server: join {clientId, reconnect}
-    Server->>Client: assigned {playerId}
-    Server->>Client: playerUpdate {players}
-    
-    loop Game Loop
-        Client->>Server: input {btn, state}
-        Server->>Plugin: sendInput(playerId, btn, state)
-        Plugin->>Emulator: Keyboard/Controller event
-    end
-    
-    loop Health Check
-        Client->>Server: ping
-        Server->>Client: pong
-    end
-    
-    Client->>Server: disconnect
-    Server->>Client: playerUpdate {players}
+## Host socket
+
+Handshake auth:
+
+```json
+{ "role": "host", "token": "<host capability>" }
 ```
+
+### Client events
+
+- `get_players`
+- `kick_player { playerId }`
+- `reset_room`
+
+### Server events
+
+- `players_list` with redacted public players;
+- `room_state` with `players` and `maxPlayers` only;
+- `room_reset_complete`;
+- `operation_error { code, message }`.
+
+Player sockets that attempt host operations receive `HOST_AUTH_REQUIRED`. Invalid handshake capabilities receive `AUTH_REQUIRED` and are disconnected.
+
+## Lifecycle guarantee
+
+Each successful join activates one controller lifecycle. FreeJoy sends at most one `releasePlayer` for that activation when it ends through disconnect, kick, reset, stale cleanup, or server shutdown. A later reconnect starts a new activation. The Python boundary resets a controller before removing it and also resets any remaining controllers when stdin closes.

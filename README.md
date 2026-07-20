@@ -102,7 +102,7 @@ FreeJoy is a full-stack controller solution that turns any mobile device into a 
 This script:
 - Builds the client (production-optimized Vite bundle)
 - Starts the Node.js server
-- Automatically opens the host page in your browser
+- Generates separate host/controller capabilities and opens the authorized host page
 
 **Option 2: Manual Start**
 
@@ -111,12 +111,12 @@ This script:
 cd server
 npm run dev
 
-# Server will be available at http://localhost:3000
+# Open the capability-bearing Host URL printed by the server.
 ```
 
 ### Connecting Controllers
 
-1.  **Host Screen**: Open `http://localhost:3000` on your PC to see the QR code
+1.  **Host Screen**: Open the `Host URL` printed by the server to see the QR code
 2.  **Mobile Devices**: Scan the QR code with your phone/tablet camera
 3.  **Auto-Assignment**: Players are automatically assigned slots P1-P4
 4.  **Start Playing**: The virtual Xbox 360 controller is ready in Ryujinx!
@@ -174,28 +174,23 @@ The Pro Controller layout maps to Xbox 360 as follows:
 
 *   **Single Python Process**: One process manages all 4 virtual controllers efficiently
 *   **Ephemeral Room IDs**: Short alphanumeric codes for easy sharing
-*   **IP-Based Fallback**: Safari/iOS clients use IP as identifier if UUID unavailable
+*   **Separate Capabilities**: Host administration and controller joining use independently configurable tokens
+*   **Fail-Safe Lifecycle**: Disconnect, kick, reset, timeout, and shutdown neutralize each active virtual controller once
 *   **Stateless Sessions**: No database - all state in memory for minimal latency
 *   **Device Nicknames**: Stored in browser localStorage for personalization
 *   **Kick Ban List**: Tracks kicked clientIds to prevent immediate rejoin
 
 ## 🔧 Configuration
 
-### Server Port
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3000` | HTTP and Socket.IO port |
+| `PUBLIC_HOST` | detected LAN address | Address placed in the controller QR URL |
+| `FREEJOY_HOST_TOKEN` | random at startup | Host API and administration capability; minimum 16 characters |
+| `FREEJOY_JOIN_TOKEN` | random at startup | Controller join capability; minimum 16 characters |
+| `FREEJOY_INPUT_EVENTS_PER_SECOND` | `120` | Per-controller input ceiling, from 10 to 1000 |
 
-Edit `server/src/index.ts`:
-
-```typescript
-const PORT = process.env.PORT || 3000;
-```
-
-### Max Players
-
-Edit `server/src/index.ts`:
-
-```typescript
-const room = new RoomManager(4); // Change to 1-4
-```
+Capabilities are carried in URL fragments, so browsers do not send them in the initial HTTP request. A restart rotates generated capabilities and invalidates old QR codes.
 
 ### Python Path
 
@@ -250,7 +245,9 @@ ryujinx-gamepad/
 │   │   │   └── RyujinxPlugin.ts     # vgamepad integration
 │   │   ├── python/
 │   │   │   └── virtual_gamepad.py   # Xbox controller emulation
-│   │   ├── index.ts                 # Express + Socket.IO server
+│   │   ├── server.ts                # Express + Socket.IO server
+│   │   ├── authority.ts             # Host/controller capabilities
+│   │   ├── protocol.ts              # Validated controller protocol
 │   │   ├── roomManager.ts           # Player/room state
 │   │   ├── wsHandler.ts             # WebSocket events
 │   │   └── types.ts                 # TypeScript types
@@ -264,7 +261,7 @@ ryujinx-gamepad/
 
 1.  Create plugin in `server/src/plugins/YourEmulator.ts`
 2.  Implement `IPlugin` interface
-3.  Register in `server/src/index.ts`
+3.  Wire it in `server/src/server.ts`
 
 ## 🎨 UI Customization
 
